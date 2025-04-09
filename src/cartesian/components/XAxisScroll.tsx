@@ -77,8 +77,10 @@ export const XAxis = <
   const xAxisNodes = xTicksNormalized.map((tick, index) => {
     // Use the first occurrence index for positioning if available
     const indexPosition = uniqueValueIndices.get(String(tick)) ?? tick;
-    const p1 = vec(xScale(indexPosition), yScale(y2));
-    const p2 = vec(xScale(indexPosition), yScale(y1));
+    const tickPosition = tick;
+
+    const p1 = vec(xScale(tickPosition), yScale(y2));
+    const p2 = vec(xScale(tickPosition), yScale(y1));
 
     const val = isNumericalData ? tick : ix[indexPosition];
 
@@ -87,7 +89,9 @@ export const XAxis = <
       font
         ?.getGlyphWidths?.(font.getGlyphIDs(contentX))
         .reduce((sum, value) => sum + value, 0) ?? 0;
-    const labelX = xScale(indexPosition) - (labelWidth ?? 0) / 2;
+    // const labelX = xScale(indexPosition) - (labelWidth ?? 0) / 2 - this does not work when the viewport is not [0,N] AND IS [N,N]
+    const labelX = xScale(tick) - (labelWidth ?? 0) / 2;
+
     const canFitLabelContent = true;
 
     const labelY = (() => {
@@ -147,6 +151,7 @@ export const XAxis = <
       return { origin, rotateOffset };
     })();
 
+    console.log("origin", contentX, origin, labelX, labelY);
     return (
       <React.Fragment key={`x-tick-${tick}`}>
         {lineWidth > 0 ? (
