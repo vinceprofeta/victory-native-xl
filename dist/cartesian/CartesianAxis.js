@@ -47,7 +47,7 @@ const useBuildChartAxis_1 = require("./hooks/useBuildChartAxis");
 const CartesianTransformContext_1 = require("./contexts/CartesianTransformContext");
 const tickHelpers_1 = require("../utils/tickHelpers");
 const normalizeYAxisTicks_1 = require("../utils/normalizeYAxisTicks");
-function useChartAxis({ yKeys, axisOptions, onScaleChange, xAxis, yAxis, frame, xScale, primaryYScale, chartBounds, yAxes, isNumericalData, _tData, hasMeasuredLayoutSize, scrollX, ignoreClip, }) {
+function useChartAxis({ yKeys, axisOptions, onScaleChange, xAxis, yAxis, frame, xScale, primaryYScale, chartBounds, yAxes, isNumericalData, _tData, hasMeasuredLayoutSize, scrollX, ignoreClip, onVisibleTicksChange, }) {
     var _a;
     const xScaleRef = React.useRef(undefined);
     const yScaleRef = React.useRef(undefined);
@@ -100,7 +100,7 @@ function useChartAxis({ yKeys, axisOptions, onScaleChange, xAxis, yAxis, frame, 
                     : rescaledTicks} chartBounds={chartBounds}/>);
         })
         : null;
-    const XAxisComponents = hasMeasuredLayoutSize && (axisOptions || xAxis) ? (<XAxisScroll_1.XAxis {...normalizedAxisProps.xAxis} scrollX={scrollX} xScale={xScale} yScale={zoomY.rescaleY(primaryYScale)} ix={_tData.ix} isNumericalData={isNumericalData} chartBounds={chartBounds} zoom={zoomX} ignoreClip={ignoreClip}/>) : null;
+    const XAxisComponents = hasMeasuredLayoutSize && (axisOptions || xAxis) ? (<XAxisScroll_1.XAxis {...normalizedAxisProps.xAxis} scrollX={scrollX} xScale={xScale} yScale={zoomY.rescaleY(primaryYScale)} ix={_tData.ix} isNumericalData={isNumericalData} chartBounds={chartBounds} zoom={zoomX} ignoreClip={ignoreClip} onVisibleTicksChange={onVisibleTicksChange}/>) : null;
     // Memoize the body content
     const chartBody = React.useMemo(() => {
         return {

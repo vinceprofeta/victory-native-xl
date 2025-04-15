@@ -435,7 +435,6 @@ function CartesianChartContent({ data, xKey, yKeys, padding, domainPadding, chil
                 scrollX,
                 prevTranslateX,
                 viewportWidth: size.width,
-                length: _tData.ix.length,
                 dimensions,
                 onScroll,
             }));

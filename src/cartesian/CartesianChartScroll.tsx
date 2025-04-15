@@ -596,7 +596,6 @@ function CartesianChartContent<
           scrollX,
           prevTranslateX,
           viewportWidth: size.width,
-          length: _tData.ix.length,
           dimensions,
           onScroll,
         }),

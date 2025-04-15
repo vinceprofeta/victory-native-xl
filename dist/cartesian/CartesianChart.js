@@ -70,6 +70,7 @@ const tickHelpers_1 = require("../utils/tickHelpers");
 const GestureHandler_1 = require("../shared/GestureHandler");
 const boundsToClip_1 = require("../utils/boundsToClip");
 const normalizeYAxisTicks_1 = require("../utils/normalizeYAxisTicks");
+const createFallbackChartState_1 = require("./utils/createFallbackChartState");
 function CartesianChart(_a) {
     var { transformState, children } = _a, rest = __rest(_a, ["transformState", "children"]);
     return (<CartesianTransformContext_1.CartesianTransformProvider transformState={transformState}>
@@ -111,6 +112,9 @@ function CartesianChartContent({ data, xKey, yKeys, padding, domainPadding, chil
     });
     const { yAxes, xScale, chartBounds, isNumericalData, xTicksNormalized, _tData, } = React.useMemo(() => {
         var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
+        if (!data.length) {
+            return (0, createFallbackChartState_1.createFallbackChartState)(yKeys);
+        }
         const _l = (0, transformInputData_1.transformInputData)({
             data,
             xKey,
@@ -275,7 +279,7 @@ function CartesianChartContent({ data, xKey, yKeys, padding, domainPadding, chil
         }
     })
         /**
-         * On start, check if we have any bootstraped updates we need to apply.
+         * On start, check if we have any bootstrapped updates we need to apply.
          */
         .onStart(() => {
         gestureState.value.isGestureActive = true;

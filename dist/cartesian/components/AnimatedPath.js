@@ -88,16 +88,16 @@ const syncPropsToSharedValues = (props, sharedValues) => {
     for (const key in props) {
         keysToRemove.delete(key);
         const propVal = props[key];
-        const sharVal = sharedValues[key];
+        const shareVal = sharedValues[key];
         // Shared value missing, create it
-        if (!sharVal) {
+        if (!shareVal) {
             sharedValues[key] = (0, react_native_reanimated_1.isSharedValue)(propVal)
                 ? propVal
                 : (0, react_native_reanimated_1.makeMutable)(propVal);
         }
         // Shared value exists, update it if not already a shared value
         else if (!(0, react_native_reanimated_1.isSharedValue)(propVal)) {
-            sharVal.value = propVal;
+            shareVal.value = propVal;
         }
     }
     // Remove keys that didn't get passed in props

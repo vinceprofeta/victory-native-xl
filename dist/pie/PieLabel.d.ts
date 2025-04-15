@@ -1,6 +1,6 @@
 import { type Color, type SkFont } from "@shopify/react-native-skia";
 import React, { type ReactNode } from "react";
-type LabelPostion = {
+type LabelPosition = {
     x: number;
     y: number;
     midAngle: number;
@@ -10,7 +10,7 @@ export type PieLabelProps = {
     radiusOffset?: number;
     color?: Color;
     text?: string;
-    children?: (position: LabelPostion) => ReactNode;
+    children?: (position: LabelPosition) => ReactNode;
 };
 declare const PieLabel: ({ font, radiusOffset, color, text, children, }: PieLabelProps) => string | number | boolean | Iterable<React.ReactNode> | React.JSX.Element | null | undefined;
 export default PieLabel;

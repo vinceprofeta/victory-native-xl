@@ -10,7 +10,9 @@ const pinchTransformGesture = (state, _config = {}) => {
         dimensions: ["x", "y"],
     };
     const config = Object.assign(Object.assign({}, defaults), _config);
-    const dimensions = Array.isArray(config.dimensions) ? config.dimensions : [config.dimensions];
+    const dimensions = Array.isArray(config.dimensions)
+        ? config.dimensions
+        : [config.dimensions];
     const scaleX = dimensions.includes("x");
     const scaleY = dimensions.includes("y");
     const pinch = react_native_gesture_handler_1.Gesture.Pinch()
@@ -39,7 +41,9 @@ const panTransformGesture = (state, _config = {}) => {
         dimensions: ["x", "y"],
     };
     const config = Object.assign(Object.assign({}, defaults), _config);
-    const dimensions = Array.isArray(config.dimensions) ? config.dimensions : [config.dimensions];
+    const dimensions = Array.isArray(config.dimensions)
+        ? config.dimensions
+        : [config.dimensions];
     const panX = dimensions.includes("x");
     const panY = dimensions.includes("y");
     const pan = react_native_gesture_handler_1.Gesture.Pan()
@@ -58,32 +62,27 @@ const panTransformGesture = (state, _config = {}) => {
     return pan;
 };
 exports.panTransformGesture = panTransformGesture;
-const scrollTransformGesture = ({ scrollX, prevTranslateX, viewportWidth, length, dimensions, onScroll, }) => {
+const scrollTransformGesture = ({ scrollX, prevTranslateX, viewportWidth, dimensions, onScroll, }) => {
     const panGesture = react_native_gesture_handler_1.Gesture.Pan()
         .activeOffsetX([-10, 10])
         .onStart(() => {
         (0, react_native_reanimated_1.cancelAnimation)(scrollX);
         prevTranslateX.value = scrollX.value;
     })
+        .onChange((e) => {
+        const chartWidth = dimensions.width || 300;
+        const change = e.changeX / chartWidth;
+        if (onScroll)
+            (0, react_native_reanimated_1.runOnJS)(onScroll)({
+                change,
+            });
+    })
         .onUpdate((e) => {
         const viewportWidth = dimensions.width || 300;
-        const change = e.translationX / viewportWidth;
         const width = (dimensions.totalContentWidth || 300) + 20;
         const newValue = prevTranslateX.value - e.translationX;
         const maxScroll = width - viewportWidth;
         scrollX.value = Math.max(0, Math.min(maxScroll, newValue));
-        if (onScroll) {
-            // need to account for viewport zoom some how - TODO
-            (0, react_native_reanimated_1.runOnJS)(onScroll)({
-                change,
-                diff: prevTranslateX.value - newValue,
-                scrollX: scrollX.value,
-                prevTranslateX: prevTranslateX.value,
-                viewportWidth,
-                length,
-                totalContentWidth: dimensions.totalContentWidth,
-            });
-        }
     })
         .onEnd((e) => {
         const width = (dimensions.totalContentWidth || 300) + 20;

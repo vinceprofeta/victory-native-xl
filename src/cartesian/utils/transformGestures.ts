@@ -105,18 +105,14 @@ export const panTransformGesture = (
 
 export const scrollTransformGesture = ({
   scrollX,
-  scrollXChange,
   prevTranslateX,
   viewportWidth,
-  length,
   dimensions,
   onScroll,
 }: {
   scrollX: SharedValue<number>;
-  scrollXChange: SharedValue<number>;
   prevTranslateX: SharedValue<number>;
   viewportWidth: number;
-  length: number;
   dimensions: Partial<{ totalContentWidth: number; width: number }>;
   onScroll?: (data: any) => void;
 }): PanGesture => {
@@ -129,11 +125,9 @@ export const scrollTransformGesture = ({
     .onChange((e) => {
       const chartWidth = dimensions.width || 300;
       const change = e.changeX / chartWidth;
-      scrollXChange.value = Math.max(scrollXChange.value + change, 0);
       if (onScroll)
         runOnJS(onScroll)({
           change,
-          scrollXChange: scrollXChange.value,
         });
     })
     .onUpdate((e) => {

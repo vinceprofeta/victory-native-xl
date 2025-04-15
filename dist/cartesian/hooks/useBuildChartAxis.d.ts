@@ -2,7 +2,7 @@ import React from "react";
 import type { Color } from "@shopify/react-native-skia";
 import type { AxisProps, FrameInputProps, InputFields, NumericalFields, XAxisInputProps, XAxisPropsWithDefaults, YAxisInputProps, YAxisPropsWithDefaults } from "../../types";
 /**
- * This hook builds the chart axes + the surrounding frame based on either the new x, y, frame props, or via backwards compatability for the older axisOptions props and the associated default values it had. The defaults for the former are the new XAxisDefaults, YAxisDefaults, and FrameDefaults, while the defaults for the latter come from the older CartesianAxisDefaultProps.
+ * This hook builds the chart axes + the surrounding frame based on either the new x, y, frame props, or via backwards compatibility for the older axisOptions props and the associated default values it had. The defaults for the former are the new XAxisDefaults, YAxisDefaults, and FrameDefaults, while the defaults for the latter come from the older CartesianAxisDefaultProps.
  *
  * The hook returns a normalized object of `xAxis, yAxes, and frame` objects that are used to determine the axes to render and in the transformInputData function.
  */

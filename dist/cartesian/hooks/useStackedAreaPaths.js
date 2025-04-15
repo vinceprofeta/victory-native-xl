@@ -59,7 +59,7 @@ const calculateOffsets = (pointsArray, y0) => {
             var _a, _b, _c, _d;
             const accumulatedOffset = (_b = (_a = offsets[layerIndex - 1]) === null || _a === void 0 ? void 0 : _a[i]) !== null && _b !== void 0 ? _b : 0;
             const previousHeightOfPoint = (_d = (_c = previousPoints[i]) === null || _c === void 0 ? void 0 : _c.y) !== null && _d !== void 0 ? _d : 0;
-            // The offset is calculated by starting at the y0 (the bottom-most line of the chart) and then subtract the preceding point's height combined with the accumlation of these values
+            // The offset is calculated by starting at the y0 (the bottom-most line of the chart) and then subtract the preceding point's height combined with the accumulation of these values
             // For example:
             // If we had something like { x: 0, high: 5, med: 4, low: 3 } as a data point and passed this in like points={[points.low, points.med, points.high]}
             // "low" is not offset by anything other than y0, since it is the first area drawn

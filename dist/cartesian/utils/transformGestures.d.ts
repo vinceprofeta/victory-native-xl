@@ -13,11 +13,10 @@ export type PanTransformGestureConfig = {
     dimensions?: Dimension | Dimension[];
 } & Pick<PanGestureConfig, "activateAfterLongPress">;
 export declare const panTransformGesture: (state: ChartTransformState, _config?: PanTransformGestureConfig) => PanGesture;
-export declare const scrollTransformGesture: ({ scrollX, prevTranslateX, viewportWidth, length, dimensions, onScroll, }: {
+export declare const scrollTransformGesture: ({ scrollX, prevTranslateX, viewportWidth, dimensions, onScroll, }: {
     scrollX: SharedValue<number>;
     prevTranslateX: SharedValue<number>;
     viewportWidth: number;
-    length: number;
     dimensions: Partial<{
         totalContentWidth: number;
         width: number;
