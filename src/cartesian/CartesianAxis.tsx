@@ -27,6 +27,7 @@ export function useChartAxis({
   hasMeasuredLayoutSize,
   scrollX,
   ignoreClip,
+  onVisibleTicksChange,
 }: any) {
   const xScaleRef = React.useRef<ScaleLinear<number, number> | undefined>(
     undefined,
@@ -130,6 +131,7 @@ export function useChartAxis({
         chartBounds={chartBounds}
         zoom={zoomX}
         ignoreClip={ignoreClip}
+        onVisibleTicksChange={onVisibleTicksChange}
       />
     ) : null;
 

@@ -105,6 +105,7 @@ export const panTransformGesture = (
 
 export const scrollTransformGesture = ({
   scrollX,
+  scrollXChange,
   prevTranslateX,
   viewportWidth,
   length,
@@ -112,6 +113,7 @@ export const scrollTransformGesture = ({
   onScroll,
 }: {
   scrollX: SharedValue<number>;
+  scrollXChange: SharedValue<number>;
   prevTranslateX: SharedValue<number>;
   viewportWidth: number;
   length: number;
@@ -124,25 +126,22 @@ export const scrollTransformGesture = ({
       cancelAnimation(scrollX);
       prevTranslateX.value = scrollX.value;
     })
+    .onChange((e) => {
+      const chartWidth = dimensions.width || 300;
+      const change = e.changeX / chartWidth;
+      scrollXChange.value = Math.max(scrollXChange.value + change, 0);
+      if (onScroll)
+        runOnJS(onScroll)({
+          change,
+          scrollXChange: scrollXChange.value,
+        });
+    })
     .onUpdate((e) => {
       const viewportWidth = dimensions.width || 300;
-      const change = e.translationX / viewportWidth;
       const width = (dimensions.totalContentWidth || 300) + 20;
       const newValue = prevTranslateX.value - e.translationX;
       const maxScroll = width - viewportWidth;
       scrollX.value = Math.max(0, Math.min(maxScroll, newValue));
-      if (onScroll) {
-        // need to account for viewport zoom some how - TODO
-        runOnJS(onScroll)({
-          change,
-          diff: prevTranslateX.value - newValue,
-          scrollX: scrollX.value,
-          prevTranslateX: prevTranslateX.value,
-          viewportWidth,
-          length,
-          totalContentWidth: dimensions.totalContentWidth,
-        });
-      }
     })
 
     .onEnd((e) => {
