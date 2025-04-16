@@ -28,6 +28,7 @@ import type {
   FrameInputProps,
   ChartPressPanConfig,
   Viewport,
+  ValueOf,
 } from "../types";
 import { transformInputData } from "./utils/transformInputData";
 import { findClosestPoint } from "../utils/findClosestPoint";
@@ -113,6 +114,9 @@ type CartesianChartProps<
       }>
     | undefined
   > | null>;
+  onVisibleTicksChange?: (
+    visibleTickData: Array<ValueOf<RawData[any]>>,
+  ) => void;
 };
 
 export function CartesianChartScroll<
@@ -156,6 +160,7 @@ function CartesianChartContent<
   viewport,
   scrollState,
   onScroll,
+  onVisibleTicksChange,
 }: CartesianChartProps<RawData, XK, YK>) {
   const [size, setSize] = React.useState({ width: 0, height: 0 });
   const chartBoundsRef = React.useRef<ChartBounds | undefined>(undefined);
@@ -275,13 +280,106 @@ function CartesianChartContent<
     };
   }, [xScale, primaryYScale, _tData.ox]);
 
-  // dont love this, but it works for now
-  const scrollX = useSharedValue(dimensions.totalContentWidth);
-  const prevTranslateX = useSharedValue(dimensions.totalContentWidth);
-  React.useEffect(() => {
-    scrollX.value = dimensions.totalContentWidth - dimensions.width + 20;
-    prevTranslateX.value = dimensions.totalContentWidth - dimensions.width;
-  }, [dimensions.totalContentWidth, dimensions.width, scrollX, prevTranslateX]);
+  // Initialize scroll values to 0. The effect will set the correct initial/updated position.
+  const scrollX = useSharedValue(0);
+  const scrollXChange = useSharedValue(0);
+  const prevTranslateX = useSharedValue(0);
+
+  // Refs to track previous state for scroll adjustment logic
+  const initialContentLength = React.useRef(data.length);
+  const prevTotalContentWidthRef = React.useRef<number | null>(null);
+  const isInitialLoadRef = React.useRef(true);
+  const prevViewportXRef = React.useRef<[number, number] | null>(
+    viewport?.x || null,
+  );
+
+  React.useLayoutEffect(() => {
+    const currentTotalContentWidth = dimensions.totalContentWidth;
+    const viewportWidth = dimensions.width;
+    const previousTotalContentWidth = prevTotalContentWidthRef.current;
+    const currentDataLength = data.length;
+    const previousDataLength = initialContentLength.current;
+
+    if (viewportWidth <= 0 || currentTotalContentWidth < 0) {
+      console.log("Scroll Effect: Skipping due to invalid dimensions", {
+        viewportWidth,
+        currentTotalContentWidth,
+      });
+      prevViewportXRef.current = viewport?.x || null;
+      return;
+    }
+
+    const maxScroll = Math.max(
+      0,
+      currentTotalContentWidth - viewportWidth + 20,
+    );
+    let newScrollX: number;
+    const dataLengthChanged = currentDataLength !== previousDataLength;
+    const dataPrepended =
+      dataLengthChanged && currentDataLength > previousDataLength;
+    const viewportXChanged =
+      viewport?.x &&
+      (prevViewportXRef?.current?.[0] !== viewport?.x?.[0] ||
+        prevViewportXRef?.current?.[1] !== viewport?.x?.[1]);
+
+    if (isInitialLoadRef.current) {
+      newScrollX = maxScroll;
+      console.log(
+        `Scroll Effect: Initial Load. Scrolling to end: ${newScrollX}`,
+      );
+      isInitialLoadRef.current = false;
+    } else if (!dataPrepended && viewportXChanged) {
+      newScrollX = maxScroll;
+      console.log(
+        `Scroll Effect: Viewport X Changed. Scrolling to end: ${newScrollX}`,
+      );
+    } else if (previousTotalContentWidth !== null) {
+      if (dataPrepended) {
+        const deltaWidth = currentTotalContentWidth - previousTotalContentWidth;
+        newScrollX = scrollX.value + deltaWidth;
+        console.log("Scroll Effect: Data Prepended");
+      } else {
+        newScrollX = scrollX.value;
+        console.log(
+          `Scroll Effect: No Prepend / Only Dim Change. Keeping scroll=${scrollX.value.toFixed(
+            2,
+          )}`,
+        );
+      }
+    } else {
+      console.warn(
+        "Scroll Effect: Unexpected state - previousTotalContentWidth is null after initial load. Defaulting to maxScroll.",
+      );
+      newScrollX = maxScroll;
+    }
+
+    const clampedScrollX = Math.max(0, Math.min(maxScroll, newScrollX));
+    console.log(
+      `Scroll Effect: Clamping. MaxScroll=${maxScroll.toFixed(
+        2,
+      )}, CalcScroll=${newScrollX.toFixed(
+        2,
+      )}, ClampedScroll=${clampedScrollX.toFixed(2)}`,
+    );
+
+    if (scrollX.value !== clampedScrollX) {
+      scrollX.value = clampedScrollX;
+    }
+    if (prevTranslateX.value !== clampedScrollX) {
+      prevTranslateX.value = clampedScrollX;
+    }
+
+    prevTotalContentWidthRef.current = currentTotalContentWidth;
+    initialContentLength.current = currentDataLength;
+    prevViewportXRef.current = viewport?.x || (null as [number, number] | null);
+  }, [
+    dimensions.totalContentWidth,
+    dimensions.width,
+    data.length,
+    scrollX,
+    prevTranslateX,
+    viewport?.x,
+  ]);
 
   /**
    * Pan gesture handling
@@ -643,6 +741,7 @@ function CartesianChartContent<
         isNumericalData={isNumericalData}
         _tData={_tData}
         scrollX={scrollX}
+        onVisibleTicksChange={onVisibleTicksChange}
       >
         {children}
       </ChartBody>
@@ -688,6 +787,9 @@ type ChartBodyProps<
   yAxes: any;
   isNumericalData: any;
   _tData: any;
+  onVisibleTicksChange?: (
+    visibleTickData: Array<ValueOf<RawData[any]>>,
+  ) => void;
 };
 
 const ChartBody = React.memo(
