@@ -11,6 +11,7 @@ import {
   cancelAnimation,
   type SharedValue,
   runOnJS,
+  withSpring,
 } from "react-native-reanimated";
 
 type Dimension = "x" | "y";
@@ -103,6 +104,15 @@ export const panTransformGesture = (
   return pan;
 };
 
+const springConfig = {
+  damping: 15,
+  mass: 1,
+  stiffness: 100,
+  overshootClamping: false,
+  restDisplacementThreshold: 0.01,
+  restSpeedThreshold: 0.01,
+};
+
 export const scrollTransformGesture = ({
   scrollX,
   prevTranslateX,
@@ -133,18 +143,40 @@ export const scrollTransformGesture = ({
     .onUpdate((e) => {
       const viewportWidth = dimensions.width || 300;
       const width = (dimensions.totalContentWidth || 300) + 20;
-      const newValue = prevTranslateX.value - e.translationX;
       const maxScroll = width - viewportWidth;
-      scrollX.value = Math.max(0, Math.min(maxScroll, newValue));
+      const potentialNewValue = prevTranslateX.value - e.translationX;
+      const rubberBandFactor = 0.55;
+
+      if (potentialNewValue < 0) {
+        const overscroll = -potentialNewValue;
+        const dampedOverscroll = overscroll * rubberBandFactor;
+        scrollX.value = -dampedOverscroll;
+      } else if (potentialNewValue > maxScroll) {
+        const overscroll = potentialNewValue - maxScroll;
+        const dampedOverscroll = overscroll * rubberBandFactor;
+        scrollX.value = maxScroll + dampedOverscroll;
+      } else {
+        scrollX.value = potentialNewValue;
+      }
     })
 
     .onEnd((e) => {
+      const viewportWidth = dimensions.width || 300;
       const width = (dimensions.totalContentWidth || 300) + 20;
-      const maxScroll = width - viewportWidth + 25;
-      scrollX.value = withDecay({
-        velocity: -e.velocityX,
-        clamp: [0, maxScroll],
-      });
+      const maxScroll = Math.max(0, width - viewportWidth);
+      const currentScroll = scrollX.value;
+
+      if (currentScroll < 0) {
+        scrollX.value = withSpring(0, springConfig);
+      } else if (currentScroll > maxScroll) {
+        scrollX.value = withSpring(maxScroll, springConfig);
+      } else {
+        const decayMaxScroll = width - viewportWidth + 25;
+        scrollX.value = withDecay({
+          velocity: -e.velocityX,
+          clamp: [0, decayMaxScroll],
+        });
+      }
     });
 
   return panGesture;
