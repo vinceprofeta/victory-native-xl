@@ -49,8 +49,8 @@ export const XAxis = <
   const xTicksNormalized = tickValues
     ? downsampleTicks(tickValues, tickCount)
     : enableRescaling
-      ? xScale.ticks(tickCount)
-      : xScaleProp.ticks(tickCount);
+    ? xScale.ticks(tickCount)
+    : xScaleProp.ticks(tickCount);
 
   const xAxisNodes = xTicksNormalized.map((tick) => {
     const p1 = vec(xScale(tick), yScale(y2));
