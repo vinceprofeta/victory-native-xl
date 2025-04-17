@@ -132,6 +132,7 @@ export function useChartAxis({
         zoom={zoomX}
         ignoreClip={ignoreClip}
         onVisibleTicksChange={onVisibleTicksChange}
+        secondaryXFont={axisOptions.secondaryXFont}
       />
     ) : null;
 

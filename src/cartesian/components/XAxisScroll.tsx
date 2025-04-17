@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useMemo, useRef } from "react";
 import { StyleSheet } from "react-native";
 import {
   Group,
@@ -16,18 +16,14 @@ import type {
   ValueOf,
   XAxisProps,
   XAxisPropsWithDefaults,
-  ChartBounds,
 } from "../../types";
 import {
   runOnJS,
   type SharedValue,
   useDerivedValue,
-  useSharedValue,
   useAnimatedReaction,
 } from "react-native-reanimated";
-import type { ScaleLinear } from "d3-scale"; // Assuming xScale is compatible
 import isEqual from "react-fast-compare";
-import { on } from "events";
 
 export const XAxis = <
   RawData extends Record<string, unknown>,
@@ -56,6 +52,7 @@ export const XAxis = <
   zoom,
   scrollX,
   onVisibleTicksChange,
+  secondaryXFont,
 }: XAxisProps<RawData, XK> & {
   scrollX: SharedValue<number>;
   ignoreClip: boolean;
@@ -225,14 +222,24 @@ export const XAxis = <
 
     const val = isNumericalData ? tick : ix[indexPosition];
 
-    const contentX = formatXLabel(val as never);
+    const contentXValue = formatXLabel(val as never);
+    const contentX =
+      typeof contentXValue === "string" ? contentXValue : contentXValue.top;
+    const contentXBottom =
+      typeof contentXValue === "string" ? null : contentXValue.bottom;
     const labelWidth =
       font
         ?.getGlyphWidths?.(font.getGlyphIDs(contentX))
         .reduce((sum, value) => sum + value, 0) ?? 0;
+    const labelWidthBottom =
+      contentXBottom && secondaryXFont
+        ? secondaryXFont
+            .getGlyphWidths(secondaryXFont.getGlyphIDs(contentXBottom))
+            .reduce((sum, value) => sum + value, 0)
+        : 0;
     // const labelX = xScale(indexPosition) - (labelWidth ?? 0) / 2 - this does not work when the viewport is not [0,N] AND IS [N,N]
     const labelX = xScale(tick) - (labelWidth ?? 0) / 2;
-
+    const labelXBottom = xScale(tick) - (labelWidthBottom ?? 0) / 2;
     const canFitLabelContent = true;
 
     const labelY = (() => {
@@ -293,7 +300,7 @@ export const XAxis = <
     })();
 
     return (
-      <React.Fragment key={`x-tick-${String(tick)}`}>
+      <Group key={`x-tick-${String(tick)}`}>
         {lineWidth > 0 ? (
           <Group
             transform={transformX}
@@ -312,7 +319,12 @@ export const XAxis = <
             <Text
               transform={[
                 {
-                  translateX: index === 0 ? 10 : 0,
+                  translateX:
+                    index === 0
+                      ? 10
+                      : index === xTicksNormalized.length - 1
+                      ? -4
+                      : 0,
                   rotate: (Math.PI / 180) * (labelRotate ?? 0),
                 },
               ]}
@@ -323,9 +335,30 @@ export const XAxis = <
               y={labelY}
               x={labelX}
             />
+            {contentXBottom ? (
+              <Text
+                transform={[
+                  {
+                    translateX:
+                      index === 0
+                        ? 10
+                        : index === xTicksNormalized.length - 1
+                        ? -4
+                        : 0,
+                    rotate: (Math.PI / 180) * (labelRotate ?? 0),
+                  },
+                ]}
+                origin={origin}
+                color={labelColor}
+                text={contentXBottom}
+                font={secondaryXFont || font}
+                y={labelY + 15}
+                x={labelXBottom}
+              />
+            ) : null}
           </Group>
         ) : null}
-      </React.Fragment>
+      </Group>
     );
   });
 
@@ -343,4 +376,5 @@ export const XAxisDefaults = {
   formatXLabel: (label: ValueOf<InputDatum>) => String(label),
   labelColor: "#000000",
   labelRotate: 0,
+  secondaryXFont: null,
 } satisfies XAxisPropsWithDefaults<never, never>;

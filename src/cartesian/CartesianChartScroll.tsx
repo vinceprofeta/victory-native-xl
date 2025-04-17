@@ -842,7 +842,7 @@ const ChartBody = React.memo(
 
 function AxisComponent(props: any) {
   const xAxisClipRect = boundsToClip({
-    bottom: props.chartBounds.bottom + 20,
+    bottom: props.chartBounds.bottom + 50,
     left: props.chartBounds.left,
     right: props.chartBounds.right,
     top: props.chartBounds.top,
