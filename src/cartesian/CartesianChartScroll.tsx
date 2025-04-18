@@ -64,6 +64,11 @@ export type CartesianActionsHandle<T = undefined> = T extends ChartPressState<
     : never
   : never;
 
+export type ScrollToRef = {
+  scrollTo: (x: number) => void;
+  getScrollX: () => number;
+} | null;
+
 type CartesianChartProps<
   RawData extends Record<string, unknown>,
   XK extends keyof InputFields<RawData>,
@@ -117,6 +122,7 @@ type CartesianChartProps<
   onVisibleTicksChange?: (
     visibleTickData: Array<ValueOf<RawData[any]>>,
   ) => void;
+  scrollControllerRef?: MutableRefObject<ScrollToRef>;
 };
 
 export function CartesianChartScroll<
@@ -161,6 +167,7 @@ function CartesianChartContent<
   scrollState,
   onScroll,
   onVisibleTicksChange,
+  scrollControllerRef,
 }: CartesianChartProps<RawData, XK, YK>) {
   const [size, setSize] = React.useState({ width: 0, height: 0 });
   const chartBoundsRef = React.useRef<ChartBounds | undefined>(undefined);
@@ -281,8 +288,8 @@ function CartesianChartContent<
   }, [xScale, primaryYScale, _tData.ox]);
 
   // Initialize scroll values to 0. The effect will set the correct initial/updated position.
+  // custom scroll started ------------------------------------------------------------
   const scrollX = useSharedValue(0);
-  const scrollXChange = useSharedValue(0);
   const prevTranslateX = useSharedValue(0);
 
   // Refs to track previous state for scroll adjustment logic
@@ -301,10 +308,6 @@ function CartesianChartContent<
     const previousDataLength = initialContentLength.current;
 
     if (viewportWidth <= 0 || currentTotalContentWidth < 0) {
-      console.log("Scroll Effect: Skipping due to invalid dimensions", {
-        viewportWidth,
-        currentTotalContentWidth,
-      });
       prevViewportXRef.current = viewport?.x || null;
       return;
     }
@@ -380,6 +383,38 @@ function CartesianChartContent<
     prevTranslateX,
     viewport?.x,
   ]);
+
+  // ... existing code ...
+  React.useImperativeHandle(
+    scrollControllerRef,
+    () => ({
+      scrollTo: (domainX: number) => {
+        // 1) Convert the domain coordinate to chart pixel space
+        const offset = 40;
+        const pixelX = xScale(domainX) - dimensions.width + offset;
+
+        // 2) Calculate how far we can scroll in total
+        const maxScroll = Math.max(
+          0,
+          dimensions.totalContentWidth - dimensions.width,
+        );
+
+        // 3) Clamp the pixel value so it never goes below 0 or above maxScroll
+        const clampedX = Math.max(0, Math.min(pixelX, maxScroll));
+
+        // 4) Update shared values
+        scrollX.value = clampedX;
+        prevTranslateX.value = clampedX;
+      },
+      getScrollX() {
+        return scrollX.value;
+      },
+    }),
+    [xScale, dimensions, scrollX, prevTranslateX],
+  );
+  // ... existing code ...
+
+  // custom scroll ENDED ------------------------------------------------------------
 
   /**
    * Pan gesture handling
@@ -688,6 +723,7 @@ function CartesianChartContent<
         );
       }
     } else if (scrollState) {
+      // custom scroll started ------------------------------------------------------------
       composed = Gesture.Race(
         composed,
         scrollTransformGesture({
@@ -698,6 +734,7 @@ function CartesianChartContent<
           onScroll,
         }),
       );
+      // custom scroll ENDED ------------------------------------------------------------
     }
     if (chartPressState) {
       composed = Gesture.Race(composed, panGesture);
