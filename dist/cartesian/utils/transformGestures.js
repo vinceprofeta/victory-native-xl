@@ -62,6 +62,14 @@ const panTransformGesture = (state, _config = {}) => {
     return pan;
 };
 exports.panTransformGesture = panTransformGesture;
+const springConfig = {
+    damping: 15,
+    mass: 1,
+    stiffness: 100,
+    overshootClamping: false,
+    restDisplacementThreshold: 0.01,
+    restSpeedThreshold: 0.01,
+};
 const scrollTransformGesture = ({ scrollX, prevTranslateX, viewportWidth, dimensions, onScroll, }) => {
     const panGesture = react_native_gesture_handler_1.Gesture.Pan()
         .activeOffsetX([-10, 10])
@@ -80,17 +88,41 @@ const scrollTransformGesture = ({ scrollX, prevTranslateX, viewportWidth, dimens
         .onUpdate((e) => {
         const viewportWidth = dimensions.width || 300;
         const width = (dimensions.totalContentWidth || 300) + 20;
-        const newValue = prevTranslateX.value - e.translationX;
         const maxScroll = width - viewportWidth;
-        scrollX.value = Math.max(0, Math.min(maxScroll, newValue));
+        const potentialNewValue = prevTranslateX.value - e.translationX;
+        const rubberBandFactor = 0.55;
+        if (potentialNewValue < 0) {
+            const overscroll = -potentialNewValue;
+            const dampedOverscroll = overscroll * rubberBandFactor;
+            scrollX.value = -dampedOverscroll;
+        }
+        else if (potentialNewValue > maxScroll) {
+            const overscroll = potentialNewValue - maxScroll;
+            const dampedOverscroll = overscroll * rubberBandFactor;
+            scrollX.value = maxScroll + dampedOverscroll;
+        }
+        else {
+            scrollX.value = potentialNewValue;
+        }
     })
         .onEnd((e) => {
+        const viewportWidth = dimensions.width || 300;
         const width = (dimensions.totalContentWidth || 300) + 20;
-        const maxScroll = width - viewportWidth + 25;
-        scrollX.value = (0, react_native_reanimated_1.withDecay)({
-            velocity: -e.velocityX,
-            clamp: [0, maxScroll],
-        });
+        const maxScroll = Math.max(0, width - viewportWidth);
+        const currentScroll = scrollX.value;
+        if (currentScroll < 0) {
+            scrollX.value = (0, react_native_reanimated_1.withSpring)(0, springConfig);
+        }
+        else if (currentScroll > maxScroll) {
+            scrollX.value = (0, react_native_reanimated_1.withSpring)(maxScroll, springConfig);
+        }
+        else {
+            const decayMaxScroll = width - viewportWidth + 25;
+            scrollX.value = (0, react_native_reanimated_1.withDecay)({
+                velocity: -e.velocityX,
+                clamp: [0, decayMaxScroll],
+            });
+        }
     });
     return panGesture;
 };

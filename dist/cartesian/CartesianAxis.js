@@ -100,7 +100,7 @@ function useChartAxis({ yKeys, axisOptions, onScaleChange, xAxis, yAxis, frame, 
                     : rescaledTicks} chartBounds={chartBounds}/>);
         })
         : null;
-    const XAxisComponents = hasMeasuredLayoutSize && (axisOptions || xAxis) ? (<XAxisScroll_1.XAxis {...normalizedAxisProps.xAxis} scrollX={scrollX} xScale={xScale} yScale={zoomY.rescaleY(primaryYScale)} ix={_tData.ix} isNumericalData={isNumericalData} chartBounds={chartBounds} zoom={zoomX} ignoreClip={ignoreClip} onVisibleTicksChange={onVisibleTicksChange}/>) : null;
+    const XAxisComponents = hasMeasuredLayoutSize && (axisOptions || xAxis) ? (<XAxisScroll_1.XAxis {...normalizedAxisProps.xAxis} scrollX={scrollX} xScale={xScale} yScale={zoomY.rescaleY(primaryYScale)} ix={_tData.ix} isNumericalData={isNumericalData} chartBounds={chartBounds} zoom={zoomX} ignoreClip={ignoreClip} onVisibleTicksChange={onVisibleTicksChange} secondaryXFont={axisOptions.secondaryXFont}/>) : null;
     // Memoize the body content
     const chartBody = React.useMemo(() => {
         return {

@@ -2,13 +2,17 @@ import * as React from "react";
 import { type ComposedGesture } from "react-native-gesture-handler";
 import type { MutableRefObject } from "react";
 import type { ScaleLinear } from "d3-scale";
-import type { AxisProps, CartesianChartRenderArg, InputFields, NumericalFields, SidedNumber, ChartBounds, YAxisInputProps, XAxisInputProps, FrameInputProps, ChartPressPanConfig, Viewport } from "../types";
+import type { AxisProps, CartesianChartRenderArg, InputFields, NumericalFields, SidedNumber, ChartBounds, YAxisInputProps, XAxisInputProps, FrameInputProps, ChartPressPanConfig, Viewport, ValueOf } from "../types";
 import type { ChartPressState, ChartPressStateInit } from "./hooks/useChartPressState";
 import type { ChartTransformState } from "./hooks/useChartTransformState";
 import { type PanTransformGestureConfig, type PinchTransformGestureConfig } from "./utils/transformGestures";
 export type CartesianActionsHandle<T = undefined> = T extends ChartPressState<infer S> ? S extends ChartPressStateInit ? {
     handleTouch: (v: T, x: number, y: number) => void;
 } : never : never;
+export type ScrollToRef = {
+    scrollTo: (x: number) => void;
+    getScrollX: () => number;
+} | null;
 type CartesianChartProps<RawData extends Record<string, unknown>, XK extends keyof InputFields<RawData>, YK extends keyof NumericalFields<RawData>> = {
     data: RawData[];
     xKey: XK;
@@ -54,6 +58,8 @@ type CartesianChartProps<RawData extends Record<string, unknown>, XK extends key
         x: InputFields<RawData>[XK];
         y: Record<YK, number>;
     }> | undefined> | null>;
+    onVisibleTicksChange?: (visibleTickData: Array<ValueOf<RawData[any]>>) => void;
+    scrollControllerRef?: MutableRefObject<ScrollToRef>;
 };
 export declare function CartesianChartScroll<RawData extends Record<string, unknown>, XK extends keyof InputFields<RawData>, YK extends keyof NumericalFields<RawData>>({ transformState, children, ...rest }: CartesianChartProps<RawData, XK, YK>): React.JSX.Element;
 export {};

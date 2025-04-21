@@ -99,6 +99,7 @@ export type AxisProps<RawData extends Record<string, unknown>, XK extends keyof 
     xScale: ScaleLinear<number, number, never>;
     yScale: ScaleLinear<number, number, never>;
     font?: SkFont | null;
+    secondaryXFont?: SkFont | null;
     lineColor?: Color | {
         grid: Color | {
             x: Color;
@@ -137,7 +138,10 @@ export type AxisProps<RawData extends Record<string, unknown>, XK extends keyof 
         x: XAxisSide;
         y: YAxisSide;
     };
-    formatXLabel?: (label: InputFields<RawData>[XK]) => string;
+    formatXLabel?: (label: InputFields<RawData>[XK]) => string | {
+        top: string;
+        bottom: string;
+    };
     formatYLabel?: (label: RawData[YK]) => string;
     domain?: YAxisDomain;
     isNumericalData?: boolean;
@@ -151,7 +155,11 @@ export type OptionalAxisProps<RawData extends Record<string, unknown>, XK extend
         y: number[];
     };
     font?: SkFont | null;
-    formatXLabel?: (label: InputFields<RawData>[XK]) => string;
+    secondaryXFont?: SkFont | null;
+    formatXLabel?: (label: InputFields<RawData>[XK]) => string | {
+        top: string;
+        bottom: string;
+    };
     formatYLabel?: (label: RawData[YK]) => string;
 };
 type DashPathEffectProps = React.ComponentProps<typeof DashPathEffect>;
@@ -159,7 +167,10 @@ type DashPathEffectComponent = React.ReactElement<DashPathEffectProps>;
 export type XAxisInputProps<RawData extends Record<string, unknown>, XK extends keyof InputFields<RawData>> = {
     axisSide?: XAxisSide;
     font?: SkFont | null;
-    formatXLabel?: (label: InputFields<RawData>[XK]) => string;
+    formatXLabel?: (label: InputFields<RawData>[XK]) => string | {
+        top: string;
+        bottom: string;
+    };
     labelColor?: string;
     labelOffset?: number;
     labelPosition?: AxisLabelPosition;
@@ -180,6 +191,7 @@ export type XAxisProps<RawData extends Record<string, unknown>, XK extends keyof
     ix: InputFields<RawData>[XK][];
     chartBounds: ChartBounds;
     zoom?: ZoomTransform;
+    secondaryXFont?: SkFont | null;
 };
 export type YAxisInputProps<RawData extends Record<string, unknown>, YK extends keyof NumericalFields<RawData>> = {
     axisSide?: YAxisSide;

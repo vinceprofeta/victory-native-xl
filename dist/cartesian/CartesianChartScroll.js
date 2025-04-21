@@ -72,7 +72,7 @@ function CartesianChartScroll(_a) {
       {children}
     </CartesianChartContent>);
 }
-function CartesianChartContent({ data, xKey, yKeys, padding, domainPadding, children, renderOutside = () => null, axisOptions, domain, chartPressState, chartPressConfig, onChartBoundsChange, onScaleChange, gestureLongPressDelay = 100, xAxis, yAxis, frame, transformState, transformConfig, customGestures, actionsRef, viewport, scrollState, onScroll, }) {
+function CartesianChartContent({ data, xKey, yKeys, padding, domainPadding, children, renderOutside = () => null, axisOptions, domain, chartPressState, chartPressConfig, onChartBoundsChange, onScaleChange, gestureLongPressDelay = 100, xAxis, yAxis, frame, transformState, transformConfig, customGestures, actionsRef, viewport, scrollState, onScroll, onVisibleTicksChange, scrollControllerRef, }) {
     var _a, _b, _c, _d, _e, _f;
     const [size, setSize] = React.useState({ width: 0, height: 0 });
     const chartBoundsRef = React.useRef(undefined);
@@ -167,13 +167,96 @@ function CartesianChartContent({ data, xKey, yKeys, padding, domainPadding, chil
             totalContentWidth,
         };
     }, [xScale, primaryYScale, _tData.ox]);
-    // dont love this, but it works for now
-    const scrollX = (0, react_native_reanimated_1.useSharedValue)(dimensions.totalContentWidth);
-    const prevTranslateX = (0, react_native_reanimated_1.useSharedValue)(dimensions.totalContentWidth);
-    React.useEffect(() => {
-        scrollX.value = dimensions.totalContentWidth - dimensions.width + 20;
-        prevTranslateX.value = dimensions.totalContentWidth - dimensions.width;
-    }, [dimensions.totalContentWidth, dimensions.width, scrollX, prevTranslateX]);
+    // Initialize scroll values to 0. The effect will set the correct initial/updated position.
+    // custom scroll started ------------------------------------------------------------
+    const scrollX = (0, react_native_reanimated_1.useSharedValue)(0);
+    const prevTranslateX = (0, react_native_reanimated_1.useSharedValue)(0);
+    // Refs to track previous state for scroll adjustment logic
+    const initialContentLength = React.useRef(data.length);
+    const prevTotalContentWidthRef = React.useRef(null);
+    const isInitialLoadRef = React.useRef(true);
+    const prevViewportXRef = React.useRef((viewport === null || viewport === void 0 ? void 0 : viewport.x) || null);
+    React.useLayoutEffect(() => {
+        var _a, _b, _c, _d;
+        const currentTotalContentWidth = dimensions.totalContentWidth;
+        const viewportWidth = dimensions.width;
+        const previousTotalContentWidth = prevTotalContentWidthRef.current;
+        const currentDataLength = data.length;
+        const previousDataLength = initialContentLength.current;
+        if (viewportWidth <= 0 || currentTotalContentWidth < 0) {
+            prevViewportXRef.current = (viewport === null || viewport === void 0 ? void 0 : viewport.x) || null;
+            return;
+        }
+        const maxScroll = Math.max(0, currentTotalContentWidth - viewportWidth + 20);
+        let newScrollX;
+        const dataLengthChanged = currentDataLength !== previousDataLength;
+        const dataPrepended = dataLengthChanged && currentDataLength > previousDataLength;
+        const viewportXChanged = (viewport === null || viewport === void 0 ? void 0 : viewport.x) &&
+            (((_a = prevViewportXRef === null || prevViewportXRef === void 0 ? void 0 : prevViewportXRef.current) === null || _a === void 0 ? void 0 : _a[0]) !== ((_b = viewport === null || viewport === void 0 ? void 0 : viewport.x) === null || _b === void 0 ? void 0 : _b[0]) ||
+                ((_c = prevViewportXRef === null || prevViewportXRef === void 0 ? void 0 : prevViewportXRef.current) === null || _c === void 0 ? void 0 : _c[1]) !== ((_d = viewport === null || viewport === void 0 ? void 0 : viewport.x) === null || _d === void 0 ? void 0 : _d[1]));
+        if (isInitialLoadRef.current) {
+            newScrollX = maxScroll;
+            console.log(`Scroll Effect: Initial Load. Scrolling to end: ${newScrollX}`);
+            isInitialLoadRef.current = false;
+        }
+        else if (!dataPrepended && viewportXChanged) {
+            newScrollX = maxScroll;
+            console.log(`Scroll Effect: Viewport X Changed. Scrolling to end: ${newScrollX}`);
+        }
+        else if (previousTotalContentWidth !== null) {
+            if (dataPrepended) {
+                const deltaWidth = currentTotalContentWidth - previousTotalContentWidth;
+                newScrollX = scrollX.value + deltaWidth;
+                console.log("Scroll Effect: Data Prepended");
+            }
+            else {
+                newScrollX = scrollX.value;
+                console.log(`Scroll Effect: No Prepend / Only Dim Change. Keeping scroll=${scrollX.value.toFixed(2)}`);
+            }
+        }
+        else {
+            console.warn("Scroll Effect: Unexpected state - previousTotalContentWidth is null after initial load. Defaulting to maxScroll.");
+            newScrollX = maxScroll;
+        }
+        const clampedScrollX = Math.max(0, Math.min(maxScroll, newScrollX));
+        console.log(`Scroll Effect: Clamping. MaxScroll=${maxScroll.toFixed(2)}, CalcScroll=${newScrollX.toFixed(2)}, ClampedScroll=${clampedScrollX.toFixed(2)}`);
+        if (scrollX.value !== clampedScrollX) {
+            scrollX.value = clampedScrollX;
+        }
+        if (prevTranslateX.value !== clampedScrollX) {
+            prevTranslateX.value = clampedScrollX;
+        }
+        prevTotalContentWidthRef.current = currentTotalContentWidth;
+        initialContentLength.current = currentDataLength;
+        prevViewportXRef.current = (viewport === null || viewport === void 0 ? void 0 : viewport.x) || null;
+    }, [
+        dimensions.totalContentWidth,
+        dimensions.width,
+        data.length,
+        scrollX,
+        prevTranslateX,
+        viewport === null || viewport === void 0 ? void 0 : viewport.x,
+    ]);
+    // ... existing code ...
+    React.useImperativeHandle(scrollControllerRef, () => ({
+        scrollTo: (domainX) => {
+            // 1) Convert the domain coordinate to chart pixel space
+            const offset = 40;
+            const pixelX = xScale(domainX) - dimensions.width + offset;
+            // 2) Calculate how far we can scroll in total
+            const maxScroll = Math.max(0, dimensions.totalContentWidth - dimensions.width);
+            // 3) Clamp the pixel value so it never goes below 0 or above maxScroll
+            const clampedX = Math.max(0, Math.min(pixelX, maxScroll));
+            // 4) Update shared values
+            scrollX.value = clampedX;
+            prevTranslateX.value = clampedX;
+        },
+        getScrollX() {
+            return scrollX.value;
+        },
+    }), [xScale, dimensions, scrollX, prevTranslateX]);
+    // ... existing code ...
+    // custom scroll ENDED ------------------------------------------------------------
     /**
      * Pan gesture handling
      */
@@ -431,6 +514,7 @@ function CartesianChartContent({ data, xKey, yKeys, padding, domainPadding, chil
             }
         }
         else if (scrollState) {
+            // custom scroll started ------------------------------------------------------------
             composed = react_native_gesture_handler_1.Gesture.Race(composed, (0, transformGestures_1.scrollTransformGesture)({
                 scrollX,
                 prevTranslateX,
@@ -438,6 +522,7 @@ function CartesianChartContent({ data, xKey, yKeys, padding, domainPadding, chil
                 dimensions,
                 onScroll,
             }));
+            // custom scroll ENDED ------------------------------------------------------------
         }
         if (chartPressState) {
             composed = react_native_gesture_handler_1.Gesture.Race(composed, panGesture);
@@ -457,7 +542,7 @@ function CartesianChartContent({ data, xKey, yKeys, padding, domainPadding, chil
         scrollX,
     ]);
     return (<react_native_gesture_handler_1.GestureHandlerRootView style={{ flex: 1, overflow: "hidden" }}>
-      <ChartBody onLayout={onLayout} FrameComponent={FrameComponent} primaryYScale={primaryYScale} xScale={xScale} clipRect={clipRect} transformState={transformState} hasMeasuredLayoutSize={hasMeasuredLayoutSize} renderArg={renderArg} renderOutside={renderOutside} yKeys={yKeys} axisOptions={axisOptions} onScaleChange={onScaleChange} xAxis={xAxis} yAxis={yAxis} frame={frame} chartBounds={chartBounds} yAxes={yAxes} isNumericalData={isNumericalData} _tData={_tData} scrollX={scrollX}>
+      <ChartBody onLayout={onLayout} FrameComponent={FrameComponent} primaryYScale={primaryYScale} xScale={xScale} clipRect={clipRect} transformState={transformState} hasMeasuredLayoutSize={hasMeasuredLayoutSize} renderArg={renderArg} renderOutside={renderOutside} yKeys={yKeys} axisOptions={axisOptions} onScaleChange={onScaleChange} xAxis={xAxis} yAxis={yAxis} frame={frame} chartBounds={chartBounds} yAxes={yAxes} isNumericalData={isNumericalData} _tData={_tData} scrollX={scrollX} onVisibleTicksChange={onVisibleTicksChange}>
         {children}
       </ChartBody>
       <GestureHandler_1.GestureHandler gesture={composedGesture} transformState={transformState} dimensions={dimensions} derivedScrollX={scrollX}/>
@@ -488,7 +573,7 @@ const ChartBody = React.memo((propList) => {
 });
 function AxisComponent(props) {
     const xAxisClipRect = (0, boundsToClip_1.boundsToClip)({
-        bottom: props.chartBounds.bottom + 20,
+        bottom: props.chartBounds.bottom + 50,
         left: props.chartBounds.left,
         right: props.chartBounds.right,
         top: props.chartBounds.top,

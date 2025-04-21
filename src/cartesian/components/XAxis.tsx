@@ -61,7 +61,7 @@ export const XAxis = <
     const contentX = formatXLabel(val as never);
     const labelWidth =
       font
-        ?.getGlyphWidths?.(font.getGlyphIDs(contentX))
+        ?.getGlyphWidths?.(font.getGlyphIDs((contentX as any)?.top || contentX))
         .reduce((sum, value) => sum + value, 0) ?? 0;
     const labelX = xScale(tick) - (labelWidth ?? 0) / 2;
     const canFitLabelContent =
@@ -147,7 +147,7 @@ export const XAxis = <
               ]}
               origin={origin}
               color={labelColor}
-              text={contentX}
+              text={(contentX as any)?.top || contentX}
               font={font}
               y={labelY}
               x={labelX}

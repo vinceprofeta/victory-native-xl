@@ -26,7 +26,7 @@ const XAxis = ({ xScale: xScaleProp, yScale, axisSide = "bottom", yAxisSide = "l
         const p2 = (0, react_native_skia_1.vec)(xScale(tick), yScale(y1));
         const val = isNumericalData ? tick : ix[tick];
         const contentX = formatXLabel(val);
-        const labelWidth = (_b = (_a = font === null || font === void 0 ? void 0 : font.getGlyphWidths) === null || _a === void 0 ? void 0 : _a.call(font, font.getGlyphIDs(contentX)).reduce((sum, value) => sum + value, 0)) !== null && _b !== void 0 ? _b : 0;
+        const labelWidth = (_b = (_a = font === null || font === void 0 ? void 0 : font.getGlyphWidths) === null || _a === void 0 ? void 0 : _a.call(font, font.getGlyphIDs((contentX === null || contentX === void 0 ? void 0 : contentX.top) || contentX)).reduce((sum, value) => sum + value, 0)) !== null && _b !== void 0 ? _b : 0;
         const labelX = xScale(tick) - (labelWidth !== null && labelWidth !== void 0 ? labelWidth : 0) / 2;
         const canFitLabelContent = xScale(tick) >= chartBounds.left &&
             xScale(tick) <= chartBounds.right &&
@@ -89,7 +89,7 @@ const XAxis = ({ xScale: xScaleProp, yScale, axisSide = "bottom", yAxisSide = "l
                     {
                         rotate: (Math.PI / 180) * (labelRotate !== null && labelRotate !== void 0 ? labelRotate : 0),
                     },
-                ]} origin={origin} color={labelColor} text={contentX} font={font} y={labelY} x={labelX}/>
+                ]} origin={origin} color={labelColor} text={(contentX === null || contentX === void 0 ? void 0 : contentX.top) || contentX} font={font} y={labelY} x={labelX}/>
           </react_native_skia_1.Group>) : null}
         <></>
       </react_1.default.Fragment>);

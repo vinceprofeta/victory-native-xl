@@ -45,7 +45,7 @@ const boundsToClip_1 = require("../../utils/boundsToClip");
 const tickHelpers_1 = require("../../utils/tickHelpers");
 const react_native_reanimated_1 = require("react-native-reanimated");
 const react_fast_compare_1 = __importDefault(require("react-fast-compare"));
-const XAxis = ({ xScale: xScaleProp, ignoreClip, yScale, axisSide = "bottom", yAxisSide = "left", labelPosition = "outset", labelRotate, tickCount = tickHelpers_1.DEFAULT_TICK_COUNT, tickValues, labelOffset = 2, labelColor = "#000000", lineWidth = react_native_1.StyleSheet.hairlineWidth, lineColor = "hsla(0, 0%, 0%, 0.25)", font, formatXLabel = (label) => String(label), ix = [], isNumericalData, linePathEffect, chartBounds, enableRescaling, zoom, scrollX, onVisibleTicksChange, }) => {
+const XAxis = ({ xScale: xScaleProp, ignoreClip, yScale, axisSide = "bottom", yAxisSide = "left", labelPosition = "outset", labelRotate, tickCount = tickHelpers_1.DEFAULT_TICK_COUNT, tickValues, labelOffset = 2, labelColor = "#000000", lineWidth = react_native_1.StyleSheet.hairlineWidth, lineColor = "hsla(0, 0%, 0%, 0.25)", font, formatXLabel = (label) => String(label), ix = [], isNumericalData, linePathEffect, chartBounds, enableRescaling, zoom, scrollX, onVisibleTicksChange, secondaryXFont, }) => {
     var _a;
     const transformX = (0, react_native_reanimated_1.useDerivedValue)(() => {
         "worklet";
@@ -177,10 +177,18 @@ const XAxis = ({ xScale: xScaleProp, ignoreClip, yScale, axisSide = "bottom", yA
         const p1 = (0, react_native_skia_1.vec)(xScale(tickPosition), yScale(y2));
         const p2 = (0, react_native_skia_1.vec)(xScale(tickPosition), yScale(y1));
         const val = isNumericalData ? tick : ix[indexPosition];
-        const contentX = formatXLabel(val);
+        const contentXValue = formatXLabel(val);
+        const contentX = typeof contentXValue === "string" ? contentXValue : contentXValue.top;
+        const contentXBottom = typeof contentXValue === "string" ? null : contentXValue.bottom;
         const labelWidth = (_c = (_b = font === null || font === void 0 ? void 0 : font.getGlyphWidths) === null || _b === void 0 ? void 0 : _b.call(font, font.getGlyphIDs(contentX)).reduce((sum, value) => sum + value, 0)) !== null && _c !== void 0 ? _c : 0;
+        const labelWidthBottom = contentXBottom && secondaryXFont
+            ? secondaryXFont
+                .getGlyphWidths(secondaryXFont.getGlyphIDs(contentXBottom))
+                .reduce((sum, value) => sum + value, 0)
+            : 0;
         // const labelX = xScale(indexPosition) - (labelWidth ?? 0) / 2 - this does not work when the viewport is not [0,N] AND IS [N,N]
         const labelX = xScale(tick) - (labelWidth !== null && labelWidth !== void 0 ? labelWidth : 0) / 2;
+        const labelXBottom = xScale(tick) - (labelWidthBottom !== null && labelWidthBottom !== void 0 ? labelWidthBottom : 0) / 2;
         const canFitLabelContent = true;
         const labelY = (() => {
             // bottom, outset
@@ -227,7 +235,7 @@ const XAxis = ({ xScale: xScaleProp, ignoreClip, yScale, axisSide = "bottom", yA
             }
             return { origin, rotateOffset };
         })();
-        return (<react_1.default.Fragment key={`x-tick-${String(tick)}`}>
+        return (<react_native_skia_1.Group key={`x-tick-${String(tick)}`}>
         {lineWidth > 0 ? (<react_native_skia_1.Group transform={transformX} clip={ignoreClip ? (0, boundsToClip_1.boundsToClip)(chartBounds) : undefined}>
             <react_native_skia_1.Line p1={p1} p2={p2} color={lineColor} strokeWidth={lineWidth}>
               {linePathEffect ? linePathEffect : null}
@@ -236,12 +244,26 @@ const XAxis = ({ xScale: xScaleProp, ignoreClip, yScale, axisSide = "bottom", yA
         {font && labelWidth && canFitLabelContent ? (<react_native_skia_1.Group transform={transformX} clip={ignoreClip ? (0, boundsToClip_1.boundsToClip)(chartBounds) : undefined}>
             <react_native_skia_1.Text transform={[
                     {
-                        translateX: index === 0 ? 10 : 0,
+                        translateX: index === 0
+                            ? 10
+                            : index === xTicksNormalized.length - 1
+                                ? -4
+                                : 0,
                         rotate: (Math.PI / 180) * (labelRotate !== null && labelRotate !== void 0 ? labelRotate : 0),
                     },
                 ]} origin={origin} color={labelColor} text={contentX} font={font} y={labelY} x={labelX}/>
+            {contentXBottom ? (<react_native_skia_1.Text transform={[
+                        {
+                            translateX: index === 0
+                                ? 10
+                                : index === xTicksNormalized.length - 1
+                                    ? -4
+                                    : 0,
+                            rotate: (Math.PI / 180) * (labelRotate !== null && labelRotate !== void 0 ? labelRotate : 0),
+                        },
+                    ]} origin={origin} color={labelColor} text={contentXBottom} font={secondaryXFont || font} y={labelY + 15} x={labelXBottom}/>) : null}
           </react_native_skia_1.Group>) : null}
-      </react_1.default.Fragment>);
+      </react_native_skia_1.Group>);
     });
     return xAxisNodes;
 };

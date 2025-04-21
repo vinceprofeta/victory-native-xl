@@ -147,7 +147,7 @@ const CartesianAxis = ({ tickCount = tickHelpers_1.DEFAULT_TICK_COUNT, xTicksNor
         })();
         return (<react_1.default.Fragment key={`x-tick-${tick}`}>
         {gridXLineWidth > 0 ? (<react_native_skia_1.Line p1={(0, react_native_skia_1.vec)(xScale(tick), yScale(y2))} p2={(0, react_native_skia_1.vec)(xScale(tick), yScale(y1))} color={gridXLineColor} strokeWidth={gridXLineWidth}/>) : null}
-        {font && labelWidth && canFitLabelContent ? (<react_native_skia_1.Text color={typeof labelColor === "string" ? labelColor : labelColor.x} text={contentX} font={font} y={labelY} x={labelX}/>) : null}
+        {font && labelWidth && canFitLabelContent ? (<react_native_skia_1.Text color={typeof labelColor === "string" ? labelColor : labelColor.x} text={(contentX === null || contentX === void 0 ? void 0 : contentX.top) || contentX} font={font} y={labelY} x={labelX}/>) : null}
       </react_1.default.Fragment>);
     });
     const boundingFrame = react_1.default.useMemo(() => {

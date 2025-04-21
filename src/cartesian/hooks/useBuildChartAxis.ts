@@ -156,6 +156,7 @@ export const useBuildChartAxis = <
       ...CartesianAxisDefaultProps,
       ...axisOptions,
       ignoreClip: axisOptions?.ignoreClip ?? false,
+      secondaryXFont: axisOptions?.secondaryXFont ?? null,
     };
     const xAxisWithDefaults: XAxisPropsWithDefaults<RawData, XK> = {
       ...XAxisDefaults,

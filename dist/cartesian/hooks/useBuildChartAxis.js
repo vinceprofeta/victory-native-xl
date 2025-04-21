@@ -16,7 +16,7 @@ const Frame_1 = require("../components/Frame");
  */
 const useBuildChartAxis = ({ axisOptions, xAxis, yAxis, frame, yKeys, }) => {
     const normalizeAxisProps = react_1.default.useMemo(() => {
-        var _a;
+        var _a, _b;
         // Helper functions to pick only the relevant properties for each prop type
         const pickXAxisProps = (axisProp) => ({
             axisSide: axisProp.axisSide.x,
@@ -101,7 +101,7 @@ const useBuildChartAxis = ({ axisOptions, xAxis, yAxis, frame, yKeys, }) => {
                 ? axisProp.lineWidth.frame
                 : axisProp.lineWidth,
         });
-        const defaultAxisOptions = Object.assign(Object.assign(Object.assign({}, CartesianAxis_1.CartesianAxisDefaultProps), axisOptions), { ignoreClip: (_a = axisOptions === null || axisOptions === void 0 ? void 0 : axisOptions.ignoreClip) !== null && _a !== void 0 ? _a : false });
+        const defaultAxisOptions = Object.assign(Object.assign(Object.assign({}, CartesianAxis_1.CartesianAxisDefaultProps), axisOptions), { ignoreClip: (_a = axisOptions === null || axisOptions === void 0 ? void 0 : axisOptions.ignoreClip) !== null && _a !== void 0 ? _a : false, secondaryXFont: (_b = axisOptions === null || axisOptions === void 0 ? void 0 : axisOptions.secondaryXFont) !== null && _b !== void 0 ? _b : null });
         const xAxisWithDefaults = Object.assign(Object.assign({}, XAxis_1.XAxisDefaults), xAxis);
         const yAxisWithDefaults = yAxis
             ? yAxis.length === 1

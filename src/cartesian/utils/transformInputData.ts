@@ -296,16 +296,16 @@ export const transformInputData = <
   // If labelRotate is true, dynamically adjust yScale range to accommodate the maximum X label width
   if (labelRotate) {
     const maxXLabel = Math.max(
-      ...xTicksNormalized.map(
-        (xTick) =>
+      ...xTicksNormalized.map((xTick) => {
+        const label = xAxis?.formatXLabel?.(xTick as never) || String(xTick);
+        return (
           xAxis?.font
             ?.getGlyphWidths?.(
-              xAxis.font.getGlyphIDs(
-                xAxis?.formatXLabel?.(xTick as never) || String(xTick),
-              ),
+              xAxis.font.getGlyphIDs((label as any)?.top || label),
             )
-            .reduce((sum, value) => sum + value, 0) ?? 0,
-      ),
+            .reduce((sum, value) => sum + value, 0) ?? 0
+        );
+      }),
     );
 
     // First, we pass labelRotate as radian to Math.sin to get labelOffset multiplier based on maxLabel width

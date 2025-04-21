@@ -172,7 +172,7 @@ export const CartesianAxis = <
   const xAxisNodes = xTicksNormalized.map((tick) => {
     const val = isNumericalData ? tick : ix[tick];
     const contentX = formatXLabel(val as never);
-    const labelWidth = getFontGlyphWidth(contentX, font);
+    const labelWidth = getFontGlyphWidth(contentX as string, font);
     const labelX = xScale(tick) - (labelWidth ?? 0) / 2;
     const canFitLabelContent =
       yAxisPosition === "left" ? labelX + labelWidth < x2r : x1r < labelX;
@@ -207,7 +207,7 @@ export const CartesianAxis = <
         {font && labelWidth && canFitLabelContent ? (
           <Text
             color={typeof labelColor === "string" ? labelColor : labelColor.x}
-            text={contentX}
+            text={(contentX as any)?.top || contentX}
             font={font}
             y={labelY}
             x={labelX}

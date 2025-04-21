@@ -192,7 +192,8 @@ const transformInputData = ({ data: _data, xKey, yKeys, outputWindow, domain, do
     if (labelRotate) {
         const maxXLabel = Math.max(...xTicksNormalized.map((xTick) => {
             var _a, _b, _c, _d;
-            return (_d = (_b = (_a = xAxis === null || xAxis === void 0 ? void 0 : xAxis.font) === null || _a === void 0 ? void 0 : _a.getGlyphWidths) === null || _b === void 0 ? void 0 : _b.call(_a, xAxis.font.getGlyphIDs(((_c = xAxis === null || xAxis === void 0 ? void 0 : xAxis.formatXLabel) === null || _c === void 0 ? void 0 : _c.call(xAxis, xTick)) || String(xTick))).reduce((sum, value) => sum + value, 0)) !== null && _d !== void 0 ? _d : 0;
+            const label = ((_a = xAxis === null || xAxis === void 0 ? void 0 : xAxis.formatXLabel) === null || _a === void 0 ? void 0 : _a.call(xAxis, xTick)) || String(xTick);
+            return ((_d = (_c = (_b = xAxis === null || xAxis === void 0 ? void 0 : xAxis.font) === null || _b === void 0 ? void 0 : _b.getGlyphWidths) === null || _c === void 0 ? void 0 : _c.call(_b, xAxis.font.getGlyphIDs((label === null || label === void 0 ? void 0 : label.top) || label)).reduce((sum, value) => sum + value, 0)) !== null && _d !== void 0 ? _d : 0);
         }));
         // First, we pass labelRotate as radian to Math.sin to get labelOffset multiplier based on maxLabel width
         // We then use this multiplier to calculate labelOffset for rotated labels
