@@ -376,5 +376,4 @@ export const XAxisDefaults = {
   formatXLabel: (label: ValueOf<InputDatum>) => String(label),
   labelColor: "#000000",
   labelRotate: 0,
-  secondaryXFont: null,
 } satisfies XAxisPropsWithDefaults<never, never>;

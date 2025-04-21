@@ -122,6 +122,7 @@ export type AxisProps<
   xScale: ScaleLinear<number, number, never>;
   yScale: ScaleLinear<number, number, never>;
   font?: SkFont | null;
+  secondaryXFont?: SkFont | null;
   lineColor?: Color | { grid: Color | { x: Color; y: Color }; frame: Color };
   lineWidth?:
     | number
@@ -167,6 +168,7 @@ export type OptionalAxisProps<
 > = {
   tickValues?: number[] | { x: number[]; y: number[] };
   font?: SkFont | null;
+  secondaryXFont?: SkFont | null;
   formatXLabel?: (
     label: InputFields<RawData>[XK],
   ) => string | { top: string; bottom: string };
@@ -182,7 +184,6 @@ export type XAxisInputProps<
 > = {
   axisSide?: XAxisSide;
   font?: SkFont | null;
-  secondaryXFont?: SkFont | null;
   formatXLabel?: (
     label: InputFields<RawData>[XK],
   ) => string | { top: string; bottom: string };
@@ -229,6 +230,7 @@ export type XAxisProps<
   ix: InputFields<RawData>[XK][];
   chartBounds: ChartBounds;
   zoom?: ZoomTransform;
+  secondaryXFont?: SkFont | null;
 };
 
 export type YAxisInputProps<
