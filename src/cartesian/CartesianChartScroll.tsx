@@ -294,6 +294,7 @@ function CartesianChartContent<
 
   // Refs to track previous state for scroll adjustment logic
   const initialContentLength = React.useRef(data.length);
+  const initialLastDataValue = React.useRef(data[data.length - 1]?.ts);
   const prevTotalContentWidthRef = React.useRef<number | null>(null);
   const isInitialLoadRef = React.useRef(true);
   const prevViewportXRef = React.useRef<[number, number] | null>(
@@ -312,6 +313,12 @@ function CartesianChartContent<
       return;
     }
 
+    if (data.length === 0) {
+      scrollX.value = 0;
+      prevTranslateX.value = 0;
+      return;
+    }
+
     const maxScroll = Math.max(
       0,
       currentTotalContentWidth - viewportWidth + 20,
@@ -324,6 +331,16 @@ function CartesianChartContent<
       viewport?.x &&
       (prevViewportXRef?.current?.[0] !== viewport?.x?.[0] ||
         prevViewportXRef?.current?.[1] !== viewport?.x?.[1]);
+
+    if (
+      initialLastDataValue.current &&
+      initialLastDataValue.current !== data[data.length - 1]?.ts &&
+      data[data.length - 1]?.ts
+    ) {
+      console.log("Scroll Effect: Data Prepended");
+      initialLastDataValue.current = data[data.length - 1]?.ts;
+      return;
+    }
 
     if (isInitialLoadRef.current) {
       newScrollX = maxScroll;
@@ -374,6 +391,7 @@ function CartesianChartContent<
 
     prevTotalContentWidthRef.current = currentTotalContentWidth;
     initialContentLength.current = currentDataLength;
+    initialLastDataValue.current = data[data.length - 1]?.ts;
     prevViewportXRef.current = viewport?.x || (null as [number, number] | null);
   }, [
     dimensions.totalContentWidth,
