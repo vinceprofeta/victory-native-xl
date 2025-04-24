@@ -42,6 +42,7 @@ export const XAxis = <
   chartBounds,
   enableRescaling,
   zoom,
+  secondaryXFont,
 }: XAxisProps<RawData, XK>) => {
   const xScale = zoom ? zoom.rescaleX(xScaleProp) : xScaleProp;
   const [y1 = 0, y2 = 0] = yScale.domain();
@@ -58,12 +59,27 @@ export const XAxis = <
 
     const val = isNumericalData ? tick : ix[tick];
 
-    const contentX = formatXLabel(val as never);
+    const contentXValue = formatXLabel(val as never);
+    const contentX =
+      typeof contentXValue === "string" ? contentXValue : contentXValue.top;
+    const contentXBottom =
+      typeof contentXValue === "string" ? null : contentXValue.bottom;
+
     const labelWidth =
       font
-        ?.getGlyphWidths?.(font.getGlyphIDs((contentX as any)?.top || contentX))
+        ?.getGlyphWidths?.(font.getGlyphIDs(contentX))
         .reduce((sum, value) => sum + value, 0) ?? 0;
+
+    const labelWidthBottom =
+      contentXBottom && secondaryXFont
+        ? secondaryXFont
+            .getGlyphWidths(secondaryXFont.getGlyphIDs(contentXBottom))
+            .reduce((sum, value) => sum + value, 0)
+        : 0;
+
     const labelX = xScale(tick) - (labelWidth ?? 0) / 2;
+    const labelXBottom = xScale(tick) - (labelWidthBottom ?? 0) / 2;
+
     const canFitLabelContent =
       xScale(tick) >= chartBounds.left &&
       xScale(tick) <= chartBounds.right &&
@@ -94,7 +110,7 @@ export const XAxis = <
       rotateOffset: number;
     } => {
       let rotateOffset = 0;
-      let origin;
+      let origin: SkPoint | undefined;
 
       // return defaults if no labelRotate is provided
       if (!labelRotate) return { origin, rotateOffset };
@@ -147,14 +163,28 @@ export const XAxis = <
               ]}
               origin={origin}
               color={labelColor}
-              text={(contentX as any)?.top || contentX}
+              text={contentX}
               font={font}
               y={labelY}
               x={labelX}
             />
+            {contentXBottom ? (
+              <Text
+                transform={[
+                  {
+                    rotate: (Math.PI / 180) * (labelRotate ?? 0),
+                  },
+                ]}
+                origin={origin}
+                color={labelColor}
+                text={contentXBottom}
+                font={secondaryXFont || font}
+                y={labelY + 15}
+                x={labelXBottom}
+              />
+            ) : null}
           </Group>
         ) : null}
-        <></>
       </React.Fragment>
     );
   });

@@ -629,6 +629,7 @@ function CartesianChartContent<
         isNumericalData={isNumericalData}
         chartBounds={chartBounds}
         zoom={zoomX}
+        secondaryXFont={axisOptions?.secondaryXFont}
       />
     ) : null;
 
