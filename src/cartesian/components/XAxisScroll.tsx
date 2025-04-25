@@ -13,6 +13,7 @@ import { DEFAULT_TICK_COUNT, downsampleTicks } from "../../utils/tickHelpers";
 import type {
   InputDatum,
   InputFields,
+  Scale,
   ValueOf,
   XAxisProps,
   XAxisPropsWithDefaults,
@@ -24,6 +25,24 @@ import {
   useAnimatedReaction,
 } from "react-native-reanimated";
 import isEqual from "react-fast-compare";
+
+// Simple debounce utility
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number,
+): (...args: Parameters<T>) => void {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  return function executedFunction(...args: Parameters<T>) {
+    const later = () => {
+      timeout = null;
+      func(...args);
+    };
+    if (timeout !== null) {
+      clearTimeout(timeout);
+    }
+    timeout = setTimeout(later, wait);
+  };
+}
 
 export const XAxis = <
   RawData extends Record<string, unknown>,
@@ -92,125 +111,16 @@ export const XAxis = <
   );
 
   // Ref to store the last reported visible ticks on the JS thread
-  const lastReportedVisibleTicksRef = useRef<Array<
-    ValueOf<RawData[XK]>
-  > | null>(null);
-
-  // --- Optimal Visible Ticks Reaction ---
-  const scaleDomain = useMemo(() => xScale.domain(), [xScale]);
-  const scaleRange = useMemo(() => xScale.range(), [xScale]);
-
-  // Memoize the JS processing function reference
-  const processAndReportTicks = useMemo(() => {
-    // This function runs on the JS thread via runOnJS
-    return () => {
-      if (!onVisibleTicksChange) return;
-
-      // Recalculate the full list accurately on JS thread
-      const actualVisibleData: Array<ValueOf<RawData[XK]>> = [];
-      const currentScrollX = scrollX.value; // Read latest scroll value
-
-      xTicksNormalized.forEach((tick) => {
-        const numericTick = Number(tick);
-        if (Number.isNaN(numericTick)) return;
-
-        // Use the JS scale here
-        const tickPixelX = xScale(numericTick);
-        const scrolledPixelX = tickPixelX - currentScrollX;
-
-        if (
-          scrolledPixelX >= chartBounds.left &&
-          scrolledPixelX <= chartBounds.right
-        ) {
-          const indexPosition = uniqueValueIndices.get(String(tick)) ?? tick;
-          const dataValue = (
-            isNumericalData ? tick : ix[indexPosition as number]
-          ) as ValueOf<RawData[XK]>;
-          actualVisibleData.push(dataValue);
-        }
-      });
-
-      // Compare with previous and call callback if changed
-      if (!isEqual(lastReportedVisibleTicksRef.current, actualVisibleData)) {
-        lastReportedVisibleTicksRef.current = actualVisibleData; // Update ref
-        onVisibleTicksChange(actualVisibleData); // Call the user's callback
-      }
-    };
-  }, [
-    onVisibleTicksChange,
-    scrollX, // Include scrollX to read latest value inside
-    xTicksNormalized,
-    xScale, // Use JS Scale
+  useProcessAndReportTicks({
+    scrollX,
     chartBounds,
+    xTicksNormalized,
+    onVisibleTicksChange,
     uniqueValueIndices,
     isNumericalData,
     ix,
-  ]);
-
-  // React to scroll changes on UI thread
-  useAnimatedReaction(
-    () => {
-      // Prepare: Calculate first/last visible tick heuristic
-      "worklet";
-      const [d0, d1] = scaleDomain;
-      const [r0, r1] = scaleRange;
-      const domainSpan = d1 - d0;
-
-      const scaleWorklet = (value: number): number => {
-        if (domainSpan === 0) return r0;
-        return r0 + ((value - d0) / domainSpan) * (r1 - r0);
-      };
-
-      let firstVisibleTick: ValueOf<RawData[XK]> | number | string | null =
-        null;
-      let lastVisibleTick: ValueOf<RawData[XK]> | number | string | null = null;
-
-      for (const tick of xTicksNormalized) {
-        const numericTick = Number(tick);
-        if (Number.isNaN(numericTick)) continue;
-
-        const tickPixelX = scaleWorklet(numericTick);
-        const scrolledPixelX = tickPixelX - scrollX.value;
-
-        if (
-          scrolledPixelX >= chartBounds.left &&
-          scrolledPixelX <= chartBounds.right
-        ) {
-          if (firstVisibleTick === null) {
-            firstVisibleTick = tick; // Found the first one
-          }
-          lastVisibleTick = tick; // Keep updating last one found in range
-        } else if (firstVisibleTick !== null) {
-          // Optimization: if we found the first and are now past the right bound, we can stop.
-          // Requires ticks to be sorted, which xScale.ticks() usually ensures.
-          if (scrolledPixelX > chartBounds.right) break;
-        }
-      }
-      // Return the heuristic value
-      return { first: firstVisibleTick, last: lastVisibleTick };
-    },
-    (current, previous) => {
-      // React: Trigger JS processing only if heuristic changes
-      "worklet";
-      // Trigger if previous is null or if first/last differs
-      if (
-        previous === null ||
-        current.first !== previous.first ||
-        current.last !== previous.last
-      ) {
-        runOnJS(processAndReportTicks)();
-      }
-    },
-    // Dependencies for the reaction prepare block
-    [
-      scrollX,
-      scaleDomain,
-      scaleRange,
-      chartBounds,
-      xTicksNormalized,
-      processAndReportTicks,
-    ],
-  );
+    xScale,
+  });
 
   const xAxisNodes = xTicksNormalized.map((tick, index) => {
     // Use the first occurrence index for positioning if available
@@ -364,6 +274,153 @@ export const XAxis = <
 
   return xAxisNodes;
 };
+
+function useProcessAndReportTicks<
+  RawData extends Record<string, unknown>,
+  XK extends keyof InputFields<RawData>,
+>({
+  scrollX,
+  chartBounds,
+  xTicksNormalized,
+  onVisibleTicksChange,
+  uniqueValueIndices,
+  isNumericalData,
+  ix,
+  xScale,
+}: {
+  scrollX: SharedValue<number>;
+  ix: InputFields<RawData>[XK][];
+  xScale: Scale;
+  chartBounds: { left: number; right: number };
+  xTicksNormalized: number[];
+  onVisibleTicksChange?: (visibleTickData: Array<ValueOf<RawData[XK]>>) => void;
+  uniqueValueIndices: Map<string, number>;
+  isNumericalData: boolean;
+}) {
+  // --- Optimal Visible Ticks Reaction ---
+  const scaleDomain = useMemo(() => xScale.domain(), [xScale]);
+  const scaleRange = useMemo(() => xScale.range(), [xScale]);
+
+  const lastReportedVisibleTicksRef = useRef<Array<
+    ValueOf<RawData[XK]>
+  > | null>(null);
+
+  const processAndReportTicks = useMemo(() => {
+    // This function runs on the JS thread via runOnJS
+    return () => {
+      if (!onVisibleTicksChange) return;
+
+      // Recalculate the full list accurately on JS thread
+      const actualVisibleData: Array<ValueOf<RawData[XK]>> = [];
+      const currentScrollX = scrollX.value; // Read latest scroll value
+
+      xTicksNormalized.forEach((tick) => {
+        const numericTick = Number(tick);
+        if (Number.isNaN(numericTick)) return;
+
+        // Use the JS scale here
+        const tickPixelX = xScale(numericTick);
+        const scrolledPixelX = tickPixelX - currentScrollX;
+
+        if (
+          scrolledPixelX >= chartBounds.left &&
+          scrolledPixelX <= chartBounds.right
+        ) {
+          const indexPosition = uniqueValueIndices.get(String(tick)) ?? tick;
+          const dataValue = (
+            isNumericalData ? tick : ix[indexPosition as number]
+          ) as ValueOf<RawData[XK]>;
+          actualVisibleData.push(dataValue);
+        }
+      });
+
+      // Compare with previous and call callback if changed
+      if (!isEqual(lastReportedVisibleTicksRef.current, actualVisibleData)) {
+        lastReportedVisibleTicksRef.current = actualVisibleData; // Update ref
+        onVisibleTicksChange(actualVisibleData); // Call the user's callback
+      }
+    };
+  }, [
+    onVisibleTicksChange,
+    scrollX, // Include scrollX to read latest value inside
+    xTicksNormalized,
+    xScale, // Use JS Scale
+    chartBounds,
+    uniqueValueIndices,
+    isNumericalData,
+    ix,
+  ]);
+
+  // Debounce the JS processing function
+  const debouncedProcessAndReportTicks = useMemo(() => {
+    return debounce(processAndReportTicks, 50); // Adjust debounce time (ms) as needed
+  }, [processAndReportTicks]);
+
+  // React to scroll changes on UI thread
+  useAnimatedReaction(
+    () => {
+      // Prepare: Calculate first/last visible tick heuristic
+      "worklet";
+      const [d0, d1] = scaleDomain;
+      const [r0, r1] = scaleRange;
+      const domainSpan = d1 - d0;
+
+      const scaleWorklet = (value: number): number => {
+        if (domainSpan === 0) return r0;
+        return r0 + ((value - d0) / domainSpan) * (r1 - r0);
+      };
+
+      let firstVisibleTick: ValueOf<RawData[XK]> | number | string | null =
+        null;
+      let lastVisibleTick: ValueOf<RawData[XK]> | number | string | null = null;
+
+      for (const tick of xTicksNormalized) {
+        const numericTick = Number(tick);
+        if (Number.isNaN(numericTick)) continue;
+
+        const tickPixelX = scaleWorklet(numericTick);
+        const scrolledPixelX = tickPixelX - scrollX.value;
+
+        if (
+          scrolledPixelX >= chartBounds.left &&
+          scrolledPixelX <= chartBounds.right
+        ) {
+          if (firstVisibleTick === null) {
+            firstVisibleTick = tick; // Found the first one
+          }
+          lastVisibleTick = tick; // Keep updating last one found in range
+        } else if (firstVisibleTick !== null) {
+          // Optimization: if we found the first and are now past the right bound, we can stop.
+          // Requires ticks to be sorted, which xScale.ticks() usually ensures.
+          if (scrolledPixelX > chartBounds.right) break;
+        }
+      }
+      // Return the heuristic value
+      return { first: firstVisibleTick, last: lastVisibleTick };
+    },
+    (current, previous) => {
+      // React: Trigger JS processing only if heuristic changes
+      "worklet";
+      // Trigger if previous is null or if first/last differs
+      if (
+        previous === null ||
+        current.first !== previous.first ||
+        current.last !== previous.last
+      ) {
+        runOnJS(debouncedProcessAndReportTicks)(); // Call the debounced function
+      }
+    },
+    // Dependencies for the reaction prepare block
+    [
+      scrollX,
+      scaleDomain,
+      scaleRange,
+      chartBounds,
+      xTicksNormalized,
+      debouncedProcessAndReportTicks,
+    ], // Use debounced function in deps
+  );
+}
 
 export const XAxisDefaults = {
   lineColor: "hsla(0, 0%, 0%, 0.25)",
