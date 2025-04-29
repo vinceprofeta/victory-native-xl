@@ -70,6 +70,9 @@ export function useCartesianScrollHandler({
       initialLastDataValue.current = lastValueTs;
       scrollX.value = maxScroll;
       isInitialLoadRef.current = true;
+      setTimeout(() => {
+        isInitialLoadRef.current = false;
+      }, 100);
       return;
     }
 
