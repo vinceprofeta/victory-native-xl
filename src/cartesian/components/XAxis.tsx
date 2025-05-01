@@ -43,6 +43,7 @@ export const XAxis = <
   enableRescaling,
   zoom,
   secondaryXFont,
+  labelXCenter = false,
 }: XAxisProps<RawData, XK>) => {
   const xScale = zoom ? zoom.rescaleX(xScaleProp) : xScaleProp;
   const [y1 = 0, y2 = 0] = yScale.domain();
@@ -53,7 +54,7 @@ export const XAxis = <
     ? xScale.ticks(tickCount)
     : xScaleProp.ticks(tickCount);
 
-  const xAxisNodes = xTicksNormalized.map((tick) => {
+  const xAxisNodes = xTicksNormalized.map((tick, index, arr) => {
     const p1 = vec(xScale(tick), yScale(y2));
     const p2 = vec(xScale(tick), yScale(y1));
 
@@ -77,8 +78,26 @@ export const XAxis = <
             .reduce((sum, value) => sum + value, 0)
         : 0;
 
-    const labelX = xScale(tick) - (labelWidth ?? 0) / 2;
-    const labelXBottom = xScale(tick) - (labelWidthBottom ?? 0) / 2;
+    let labelX = 0;
+    let labelXBottom = 0;
+    let centerX = 0;
+    if (labelXCenter) {
+      if (index < arr.length - 1) {
+        const nextTick = arr[index + 1];
+        centerX = xScale(tick) + (xScale(nextTick) - xScale(tick)) / 2;
+      } else if (index > 0) {
+        const prevTick = arr[index - 1];
+        const spacing = xScale(tick) - xScale(prevTick);
+        centerX = xScale(tick) + spacing / 2;
+      } else {
+        centerX = xScale(tick);
+      }
+      labelX = centerX - labelWidth / 2;
+      labelXBottom = centerX - labelWidthBottom / 2;
+    } else {
+      labelX = xScale(tick) - (labelWidth ?? 0) / 2;
+      labelXBottom = xScale(tick) - (labelWidthBottom ?? 0) / 2;
+    }
 
     const canFitLabelContent =
       xScale(tick) >= chartBounds.left &&

@@ -72,6 +72,7 @@ export const XAxis = <
   scrollX,
   onVisibleTicksChange,
   secondaryXFont,
+  labelXCenter = false,
 }: XAxisProps<RawData, XK> & {
   scrollX: SharedValue<number>;
   ignoreClip: boolean;
@@ -122,7 +123,7 @@ export const XAxis = <
     xScale,
   });
 
-  const xAxisNodes = xTicksNormalized.map((tick, index) => {
+  const xAxisNodes = xTicksNormalized.map((tick, index, arr) => {
     // Use the first occurrence index for positioning if available
     const indexPosition = uniqueValueIndices.get(String(tick)) ?? tick;
     const tickPosition = tick;
@@ -147,10 +148,29 @@ export const XAxis = <
             .getGlyphWidths(secondaryXFont.getGlyphIDs(contentXBottom))
             .reduce((sum, value) => sum + value, 0)
         : 0;
-    // const labelX = xScale(indexPosition) - (labelWidth ?? 0) / 2 - this does not work when the viewport is not [0,N] AND IS [N,N]
-    const labelX = xScale(tick) - (labelWidth ?? 0) / 2;
-    const labelXBottom = xScale(tick) - (labelWidthBottom ?? 0) / 2;
+
     const canFitLabelContent = true;
+
+    let labelX = 0;
+    let labelXBottom = 0;
+    let centerX = 0;
+    if (labelXCenter) {
+      if (index < arr.length - 1) {
+        const nextTick = arr[index + 1];
+        centerX = xScale(tick) + (xScale(nextTick) - xScale(tick)) / 2;
+      } else if (index > 0) {
+        const prevTick = arr[index - 1];
+        const spacing = xScale(tick) - xScale(prevTick);
+        centerX = xScale(tick) + spacing / 2;
+      } else {
+        centerX = xScale(tick);
+      }
+      labelX = centerX - labelWidth / 2;
+      labelXBottom = centerX - labelWidthBottom / 2;
+    } else {
+      labelX = xScale(tick) - (labelWidth ?? 0) / 2;
+      labelXBottom = xScale(tick) - (labelWidthBottom ?? 0) / 2;
+    }
 
     const labelY = (() => {
       // bottom, outset

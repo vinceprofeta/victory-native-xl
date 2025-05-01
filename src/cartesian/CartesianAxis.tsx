@@ -133,6 +133,7 @@ export function useChartAxis({
         ignoreClip={ignoreClip}
         onVisibleTicksChange={onVisibleTicksChange}
         secondaryXFont={axisOptions.secondaryXFont}
+        labelXCenter={axisOptions.labelXCenter}
       />
     ) : null;
 

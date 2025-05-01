@@ -630,6 +630,7 @@ function CartesianChartContent<
         chartBounds={chartBounds}
         zoom={zoomX}
         secondaryXFont={axisOptions?.secondaryXFont}
+        labelXCenter={axisOptions?.labelXCenter}
       />
     ) : null;
 

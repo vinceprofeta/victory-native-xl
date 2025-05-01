@@ -143,6 +143,7 @@ export type AxisProps<
   isNumericalData?: boolean;
   ix?: InputFields<RawData>[XK][];
   ignoreClip?: boolean;
+  labelXCenter?: boolean;
 };
 
 // The default prop options we pass in
@@ -231,6 +232,7 @@ export type XAxisProps<
   chartBounds: ChartBounds;
   zoom?: ZoomTransform;
   secondaryXFont?: SkFont | null;
+  labelXCenter?: boolean;
 };
 
 export type YAxisInputProps<
