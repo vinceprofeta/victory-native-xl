@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ZoomTransform } from "d3-zoom";
+import { Group } from "@shopify/react-native-skia";
 import type { ScaleLinear } from "d3-scale";
 import isEqual from "react-fast-compare";
 import { useFunctionRef } from "../hooks/useFunctionRef";
@@ -7,11 +7,12 @@ import { useFunctionRef } from "../hooks/useFunctionRef";
 import { XAxis } from "./components/XAxisScroll";
 import { YAxis } from "./components/YAxis";
 import { useBuildChartAxis } from "./hooks/useBuildChartAxis";
-import { useCartesianTransformContext } from "./contexts/CartesianTransformContext";
 import { downsampleTicks } from "../utils/tickHelpers";
 import { normalizeYAxisTicks } from "../utils/normalizeYAxisTicks";
+import { boundsToClip } from "../utils/boundsToClip";
+import { useMemo } from "react";
 
-export function useChartAxis({
+export function ChartAxis({
   yKeys,
   axisOptions,
   onScaleChange,
@@ -28,6 +29,8 @@ export function useChartAxis({
   scrollX,
   ignoreClip,
   onVisibleTicksChange,
+  zoomX,
+  zoomY,
 }: any) {
   const xScaleRef = React.useRef<ScaleLinear<number, number> | undefined>(
     undefined,
@@ -44,18 +47,6 @@ export function useChartAxis({
     axisOptions,
   });
 
-  // create a d3-zoom transform object based on the current transform state. This
-  // is used for rescaling the X and Y axes.
-  const transform = useCartesianTransformContext();
-  const zoomX = React.useMemo(
-    () => new ZoomTransform(transform.k, transform.tx, transform.ty),
-    [transform.k, transform.tx, transform.ty],
-  );
-  const zoomY = React.useMemo(
-    () => new ZoomTransform(transform.ky, transform.tx, transform.ty),
-    [transform.ky, transform.tx, transform.ty],
-  );
-
   const onScaleRef = useFunctionRef(onScaleChange);
   React.useEffect(() => {
     const rescaledX = zoomX.rescaleX(xScale);
@@ -70,7 +61,7 @@ export function useChartAxis({
       yScaleRef.current = primaryYScale;
       onScaleRef.current?.(rescaledX, rescaledY);
     }
-  }, [onScaleChange, onScaleRef, xScale, zoomX, zoomY, primaryYScale]);
+  }, [onScaleRef, xScale, zoomX, zoomY, primaryYScale]);
 
   const YAxisComponents =
     hasMeasuredLayoutSize && (axisOptions || yAxes)
@@ -133,17 +124,24 @@ export function useChartAxis({
         ignoreClip={ignoreClip}
         onVisibleTicksChange={onVisibleTicksChange}
         secondaryXFont={axisOptions.secondaryXFont}
-        labelXCenter={axisOptions.labelXCenter}
       />
     ) : null;
 
-  // Memoize the body content
-  const chartBody = React.useMemo(() => {
-    return {
-      YAxisComponents,
-      XAxisComponents,
-    };
-  }, [YAxisComponents, XAxisComponents]);
+  const xAxisClipRect = useMemo(
+    () =>
+      boundsToClip({
+        bottom: chartBounds.bottom + 50,
+        left: chartBounds.left,
+        right: chartBounds.right,
+        top: chartBounds.top,
+      }),
+    [chartBounds.bottom, chartBounds.left, chartBounds.right, chartBounds.top],
+  );
 
-  return chartBody;
+  return (
+    <>
+      {YAxisComponents}
+      <Group clip={xAxisClipRect}>{XAxisComponents}</Group>
+    </>
+  );
 }

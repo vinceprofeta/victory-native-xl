@@ -1,4 +1,5 @@
 import * as React from "react";
+import { ZoomTransform } from "d3-zoom";
 import type { LayoutChangeEvent } from "react-native";
 import { Canvas, type ClipDef, Group } from "@shopify/react-native-skia";
 import {
@@ -50,10 +51,13 @@ import {
   type PinchTransformGestureConfig,
   scrollTransformGesture,
 } from "./utils/transformGestures";
-import { CartesianTransformProvider } from "./contexts/CartesianTransformContext";
+import {
+  CartesianTransformProvider,
+  useCartesianTransformContext,
+} from "./contexts/CartesianTransformContext";
 import { GestureHandler } from "../shared/GestureHandler";
 import { boundsToClip } from "../utils/boundsToClip";
-import { useChartAxis } from "./CartesianAxis";
+import { ChartAxis } from "./CartesianAxis";
 import { useCartesianScrollHandler } from "./useCartesianScrollHandler";
 export type CartesianActionsHandle<T = undefined> = T extends ChartPressState<
   infer S
@@ -132,9 +136,11 @@ export function CartesianChartScroll<
   YK extends keyof NumericalFields<RawData>,
 >({ transformState, children, ...rest }: CartesianChartProps<RawData, XK, YK>) {
   return (
-    <CartesianChartContent {...{ ...rest, transformState }}>
-      {children}
-    </CartesianChartContent>
+    <CartesianTransformProvider transformState={transformState}>
+      <CartesianChartContent {...{ ...rest, transformState }}>
+        {children}
+      </CartesianChartContent>
+    </CartesianTransformProvider>
   );
 }
 
@@ -643,113 +649,61 @@ function CartesianChartContent<
     scrollX,
   ]);
 
+  const transform = useDerivedValue(() => {
+    return [{ translateX: -scrollX.value }];
+  });
+
+  // create a d3-zoom transform object based on the current transform state. This
+  // is used for rescaling the X and Y axes.
+  const transformValues = useCartesianTransformContext();
+  const zoomX = React.useMemo(
+    () =>
+      new ZoomTransform(
+        transformValues.k,
+        transformValues.tx,
+        transformValues.ty,
+      ),
+    [transformValues.k, transformValues.tx, transformValues.ty],
+  );
+  const zoomY = React.useMemo(
+    () =>
+      new ZoomTransform(
+        transformValues.ky,
+        transformValues.tx,
+        transformValues.ty,
+      ),
+    [transformValues.ky, transformValues.tx, transformValues.ty],
+  );
+
   return (
     <GestureHandlerRootView style={{ flex: 1, overflow: "hidden" }}>
-      <ChartBody
-        onLayout={onLayout}
-        FrameComponent={FrameComponent}
-        primaryYScale={primaryYScale}
-        xScale={xScale}
-        clipRect={clipRect}
-        transformState={transformState}
-        hasMeasuredLayoutSize={hasMeasuredLayoutSize}
-        renderArg={renderArg}
-        renderOutside={renderOutside}
-        yKeys={yKeys}
-        axisOptions={axisOptions}
-        onScaleChange={onScaleChange}
-        xAxis={xAxis}
-        yAxis={yAxis}
-        frame={frame}
-        chartBounds={chartBounds}
-        yAxes={yAxes}
-        isNumericalData={isNumericalData}
-        _tData={_tData}
-        scrollX={scrollX}
-        onVisibleTicksChange={onVisibleTicksChange}
-      >
-        {children}
-      </ChartBody>
-      <GestureHandler
-        gesture={composedGesture}
-        transformState={transformState}
-        dimensions={dimensions}
-        derivedScrollX={scrollX}
-      />
-    </GestureHandlerRootView>
-  );
-}
-
-type ChartBodyProps<
-  RawData extends Record<string, unknown>,
-  YK extends keyof NumericalFields<RawData>,
-> = {
-  onLayout: (event: LayoutChangeEvent) => void;
-  FrameComponent: React.ReactNode;
-  primaryYScale: ScaleLinear<number, number>;
-  xScale: ScaleLinear<number, number>;
-  clipRect: ClipDef;
-  hasMeasuredLayoutSize: boolean;
-  renderArg: CartesianChartRenderArg<RawData, YK>;
-  scrollX: SharedValue<number>;
-  children: (
-    args: CartesianChartRenderArg<RawData, YK> | any,
-  ) => React.ReactNode;
-  renderOutside?: (
-    args: CartesianChartRenderArg<RawData, YK> | any,
-  ) => React.ReactNode;
-  transformState?: ChartTransformState;
-  yKeys: YK[] | any;
-  axisOptions: any;
-  onScaleChange?: (
-    xScale: ScaleLinear<number, number>,
-    yScale: ScaleLinear<number, number>,
-  ) => void;
-  xAxis?: any;
-  yAxis?: any;
-  frame?: any;
-  chartBounds: any;
-  yAxes: any;
-  isNumericalData: any;
-  _tData: any;
-  onVisibleTicksChange?: (
-    visibleTickData: Array<ValueOf<RawData[any]>>,
-  ) => void;
-};
-
-const ChartBody = React.memo(
-  <
-    RawData extends Record<string, unknown>,
-    YK extends keyof NumericalFields<RawData>,
-  >(
-    propList: ChartBodyProps<RawData, YK>,
-  ) => {
-    const {
-      onLayout,
-      FrameComponent,
-      primaryYScale,
-      xScale,
-      clipRect,
-      hasMeasuredLayoutSize,
-      renderArg,
-      scrollX,
-      children,
-      renderOutside,
-      transformState,
-    } = propList;
-    const transform = useDerivedValue(() => {
-      return [{ translateX: -scrollX.value }];
-    });
-
-    const AxisComponents = (
-      <CartesianTransformProvider transformState={transformState}>
-        <AxisComponent {...propList} />
-      </CartesianTransformProvider>
-    );
-    return (
       <Canvas style={{ flex: 1 }} onLayout={onLayout}>
         {FrameComponent}
-        {AxisComponents}
+        <ChartAxis
+          onLayout={onLayout}
+          FrameComponent={FrameComponent}
+          primaryYScale={primaryYScale}
+          xScale={xScale}
+          clipRect={clipRect}
+          transformState={transformState}
+          hasMeasuredLayoutSize={hasMeasuredLayoutSize}
+          renderArg={renderArg}
+          renderOutside={renderOutside}
+          yKeys={yKeys}
+          axisOptions={axisOptions}
+          onScaleChange={onScaleChange}
+          xAxis={xAxis}
+          yAxis={yAxis}
+          frame={frame}
+          chartBounds={chartBounds}
+          yAxes={yAxes}
+          isNumericalData={isNumericalData}
+          _tData={_tData}
+          scrollX={scrollX}
+          onVisibleTicksChange={onVisibleTicksChange}
+          zoomX={zoomX}
+          zoomY={zoomY}
+        />
         <Group>
           <CartesianChartProvider yScale={primaryYScale} xScale={xScale}>
             <Group clip={clipRect}>
@@ -761,22 +715,13 @@ const ChartBody = React.memo(
         </Group>
         {hasMeasuredLayoutSize && renderOutside?.(renderArg)}
       </Canvas>
-    );
-  },
-);
 
-function AxisComponent(props: any) {
-  const xAxisClipRect = boundsToClip({
-    bottom: props.chartBounds.bottom + 50,
-    left: props.chartBounds.left,
-    right: props.chartBounds.right,
-    top: props.chartBounds.top,
-  });
-  const axis = useChartAxis(props);
-  return (
-    <>
-      {axis.YAxisComponents}
-      <Group clip={xAxisClipRect}>{axis.XAxisComponents}</Group>
-    </>
+      <GestureHandler
+        gesture={composedGesture}
+        transformState={transformState}
+        dimensions={dimensions}
+        derivedScrollX={scrollX}
+      />
+    </GestureHandlerRootView>
   );
 }

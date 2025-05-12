@@ -59,6 +59,7 @@ export function useCartesianScrollHandler({
       (prevViewportXRef?.current?.[0] !== viewport?.x?.[0] ||
         prevViewportXRef?.current?.[1] !== viewport?.x?.[1]);
 
+    // timne frame changed - completelt new data - reset state
     if (
       initialLastDataValue.current &&
       initialLastDataValue.current !== lastValueTs &&
@@ -67,9 +68,16 @@ export function useCartesianScrollHandler({
       // if the last value was changed. we did not prepend data we totally reset the data. Scroll to end.
       // reset states
       console.log("Scroll Effect: Date Range Changed");
-      initialLastDataValue.current = lastValueTs;
       scrollX.value = maxScroll;
       isInitialLoadRef.current = true;
+
+      // reset state
+      prevTotalContentWidthRef.current = currentTotalContentWidth;
+      initialContentLength.current = currentDataLength;
+      initialLastDataValue.current = lastValueTs;
+      prevViewportXRef.current =
+        viewport?.x || (null as [number, number] | null);
+
       setTimeout(() => {
         isInitialLoadRef.current = false;
       }, 100);
@@ -84,6 +92,7 @@ export function useCartesianScrollHandler({
       isInitialLoadRef.current = false;
     } else if (!dataPrepended && viewportXChanged) {
       newScrollX = maxScroll;
+
       console.log(
         `Scroll Effect: Viewport X Changed. Scrolling to end: ${newScrollX}`,
       );
