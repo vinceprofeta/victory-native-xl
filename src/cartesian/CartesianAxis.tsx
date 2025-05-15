@@ -124,6 +124,7 @@ export function ChartAxis({
         ignoreClip={ignoreClip}
         onVisibleTicksChange={onVisibleTicksChange}
         secondaryXFont={axisOptions.secondaryXFont}
+        labelXCenter={axisOptions.labelXCenter}
       />
     ) : null;
 
