@@ -105,6 +105,7 @@ export function ChartAxis({
                   : rescaledTicks
               }
               chartBounds={chartBounds}
+              labelCenterOffset={axisOptions?.labelCenterOffset?.y}
             />
           );
         })

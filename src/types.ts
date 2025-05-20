@@ -131,6 +131,7 @@ export type AxisProps<
   tickCount?: number | { x: number; y: number };
   tickValues?: number[] | { x: number[]; y: number[] };
   labelOffset?: number | { x: number; y: number };
+  labelCenterOffset?: { x: number; y: number };
   labelPosition?:
     | AxisLabelPosition
     | { x: AxisLabelPosition; y: AxisLabelPosition };
@@ -280,6 +281,7 @@ export type YAxisProps<
   yTicksNormalized: number[];
   yKeys: YK[];
   chartBounds: ChartBounds;
+  labelCenterOffset?: number;
 };
 
 export type FrameInputProps = {
