@@ -111,24 +111,6 @@ export function ChartAxis({
         })
       : null;
 
-  const XAxisComponents =
-    hasMeasuredLayoutSize && (axisOptions || xAxis) ? (
-      <XAxis
-        {...normalizedAxisProps.xAxis}
-        scrollX={scrollX}
-        xScale={xScale}
-        yScale={zoomY.rescaleY(primaryYScale)}
-        ix={_tData.ix}
-        isNumericalData={isNumericalData}
-        chartBounds={chartBounds}
-        zoom={zoomX}
-        ignoreClip={ignoreClip}
-        onVisibleTicksChange={onVisibleTicksChange}
-        secondaryXFont={axisOptions.secondaryXFont}
-        labelXCenter={axisOptions.labelXCenter}
-      />
-    ) : null;
-
   const xAxisClipRect = useMemo(
     () =>
       boundsToClip({
@@ -143,7 +125,24 @@ export function ChartAxis({
   return (
     <>
       {YAxisComponents}
-      <Group clip={xAxisClipRect}>{XAxisComponents}</Group>
+      <Group clip={xAxisClipRect}>
+        {hasMeasuredLayoutSize && (axisOptions || xAxis) ? (
+          <XAxis
+            {...normalizedAxisProps.xAxis}
+            scrollX={scrollX}
+            xScale={xScale}
+            yScale={zoomY.rescaleY(primaryYScale)}
+            ix={_tData.ix}
+            isNumericalData={isNumericalData}
+            chartBounds={chartBounds}
+            zoom={zoomX}
+            ignoreClip={ignoreClip}
+            onVisibleTicksChange={onVisibleTicksChange}
+            secondaryXFont={axisOptions.secondaryXFont}
+            labelXCenter={axisOptions.labelXCenter}
+          />
+        ) : null}
+      </Group>
     </>
   );
 }

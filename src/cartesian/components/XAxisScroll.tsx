@@ -1,16 +1,19 @@
-import React, { useMemo, useRef } from "react";
+import React, { memo, useMemo, useRef, useState } from "react";
 import { StyleSheet } from "react-native";
 import {
+  type Color,
   Group,
   Line,
   Text,
   vec,
+  type SkFont as Font,
   type SkPoint,
 } from "@shopify/react-native-skia";
 import { getOffsetFromAngle } from "../../utils/getOffsetFromAngle";
 import { boundsToClip } from "../../utils/boundsToClip";
 import { DEFAULT_TICK_COUNT, downsampleTicks } from "../../utils/tickHelpers";
 import type {
+  ChartBounds,
   InputDatum,
   InputFields,
   Scale,
@@ -44,7 +47,7 @@ function debounce<T extends (...args: any[]) => any>(
   };
 }
 
-export const XAxis = <
+export const MemoizedXAxis = <
   RawData extends Record<string, unknown>,
   XK extends keyof InputFields<RawData>,
 >({
@@ -112,7 +115,7 @@ export const XAxis = <
   );
 
   // Ref to store the last reported visible ticks on the JS thread
-  useProcessAndReportTicks({
+  const { ticksInRangeWithBuffer } = useProcessAndReportTicks({
     scrollX,
     chartBounds,
     xTicksNormalized,
@@ -123,129 +126,205 @@ export const XAxis = <
     xScale,
   });
 
-  const xAxisNodes = xTicksNormalized.map((tick, index, arr) => {
-    // Use the first occurrence index for positioning if available
-    const indexPosition = uniqueValueIndices.get(String(tick)) ?? tick;
-    const tickPosition = tick;
-
-    const p1 = vec(xScale(tickPosition), yScale(y2));
-    const p2 = vec(xScale(tickPosition), yScale(y1));
-
-    const val = isNumericalData ? tick : ix[indexPosition];
-
-    const contentXValue = formatXLabel(val as never);
-    const contentX =
-      typeof contentXValue === "string" ? contentXValue : contentXValue.top;
-    const contentXBottom =
-      typeof contentXValue === "string" ? null : contentXValue.bottom;
-    const labelWidth =
-      font
-        ?.getGlyphWidths?.(font.getGlyphIDs(contentX))
-        .reduce((sum, value) => sum + value, 0) ?? 0;
-    const labelWidthBottom =
-      contentXBottom && secondaryXFont
-        ? secondaryXFont
-            .getGlyphWidths(secondaryXFont.getGlyphIDs(contentXBottom))
-            .reduce((sum, value) => sum + value, 0)
-        : 0;
-
-    const canFitLabelContent = true;
-
-    let labelX = 0;
-    let labelXBottom = 0;
-    let centerX = 0;
-    if (labelXCenter) {
-      if (index < arr.length - 1) {
-        const nextTick = arr[index + 1];
-        centerX = xScale(tick) + (xScale(nextTick) - xScale(tick)) / 2;
-      } else if (index > 0) {
-        const prevTick = arr[index - 1];
-        const spacing = xScale(tick) - xScale(prevTick);
-        centerX = xScale(tick) + spacing / 2;
-      } else {
-        centerX = xScale(tick);
-      }
-      labelX = centerX - labelWidth / 2;
-      labelXBottom = centerX - labelWidthBottom / 2;
-    } else {
-      labelX = xScale(tick) - (labelWidth ?? 0) / 2;
-      labelXBottom = xScale(tick) - (labelWidthBottom ?? 0) / 2;
+  return xTicksNormalized.map((tick, index, arr) => {
+    if (!ticksInRangeWithBuffer?.includes(tick)) {
+      return null;
     }
-
-    const labelY = (() => {
-      // bottom, outset
-      if (axisSide === "bottom" && labelPosition === "outset") {
-        return chartBounds.bottom + labelOffset + fontSize;
-      }
-      // bottom, inset
-      if (axisSide === "bottom" && labelPosition === "inset") {
-        return yScale(y2) - labelOffset;
-      }
-      // top, outset
-      if (axisSide === "top" && labelPosition === "outset") {
-        return yScale(y1) - labelOffset;
-      }
-      // top, inset
-      return yScale(y1) + fontSize + labelOffset;
-    })();
-
-    // Calculate origin and translate for label rotation
-    const { origin, rotateOffset } = ((): {
-      origin: SkPoint | undefined;
-      rotateOffset: number;
-    } => {
-      let rotateOffset = 0;
-      let origin;
-
-      // return defaults if no labelRotate is provided
-      if (!labelRotate) return { origin, rotateOffset };
-
-      if (axisSide === "bottom" && labelPosition === "outset") {
-        // bottom, outset
-        origin = vec(labelX + labelWidth / 2, labelY);
-        rotateOffset = Math.abs(
-          (labelWidth / 2) * getOffsetFromAngle(labelRotate),
-        );
-      } else if (axisSide === "bottom" && labelPosition === "inset") {
-        // bottom, inset
-        origin = vec(labelX + labelWidth / 2, labelY);
-        rotateOffset = -Math.abs(
-          (labelWidth / 2) * getOffsetFromAngle(labelRotate),
-        );
-      } else if (axisSide === "top" && labelPosition === "inset") {
-        // top, inset
-        origin = vec(labelX + labelWidth / 2, labelY - fontSize / 4);
-        rotateOffset = Math.abs(
-          (labelWidth / 2) * getOffsetFromAngle(labelRotate),
-        );
-      } else {
-        // top, outset
-        origin = vec(labelX + labelWidth / 2, labelY - fontSize / 4);
-        rotateOffset = -Math.abs(
-          (labelWidth / 2) * getOffsetFromAngle(labelRotate),
-        );
-      }
-
-      return { origin, rotateOffset };
-    })();
-
     return (
-      <Group key={`x-tick-${String(tick)}`}>
-        {lineWidth > 0 ? (
-          <Group
-            transform={transformX}
-            clip={ignoreClip ? boundsToClip(chartBounds) : undefined}
-          >
-            <Line p1={p1} p2={p2} color={lineColor} strokeWidth={lineWidth}>
-              {linePathEffect ? linePathEffect : null}
-            </Line>
-          </Group>
-        ) : null}
-        {font && labelWidth && canFitLabelContent ? (
-          <Group
-            transform={transformX}
-            clip={ignoreClip ? boundsToClip(chartBounds) : undefined}
-          >
+      <MemoTickGroup
+        key={`x-tick-${String(tick)}`}
+        lineWidth={lineWidth}
+        ignoreClip={ignoreClip}
+        chartBounds={chartBounds}
+        transformX={transformX}
+        uniqueValueIndices={uniqueValueIndices}
+        tick={tick}
+        xScale={xScale}
+        yScale={yScale}
+        font={font}
+        labelRotate={labelRotate}
+        labelColor={labelColor}
+        secondaryXFont={secondaryXFont}
+        formatXLabel={formatXLabel}
+        isNumericalData={isNumericalData}
+        ix={ix}
+        labelXCenter={labelXCenter}
+        index={index}
+        arr={arr}
+        xTicksNormalized={xTicksNormalized}
+        y2={y2}
+        y1={y1}
+        lineColor={lineColor}
+        axisSide={axisSide}
+        labelPosition={labelPosition}
+        labelOffset={labelOffset}
+        fontSize={fontSize}
+      />
+    );
+  });
+};
+
+const MemoTickGroup = React.memo(TickGroup, (prev, next) => {
+  return (
+    prev.tick === next.tick &&
+    prev.xScale === next.xScale &&
+    prev.yScale === next.yScale &&
+    prev.index === next.index
+  );
+});
+
+function TickGroup({
+  lineWidth,
+  ignoreClip,
+  chartBounds,
+  transformX,
+  uniqueValueIndices,
+  tick,
+  xScale,
+  yScale,
+  font,
+  labelColor,
+  secondaryXFont,
+  formatXLabel,
+  isNumericalData,
+  ix,
+  labelXCenter,
+  index,
+  arr,
+  xTicksNormalized,
+  y2,
+  y1,
+  lineColor,
+  axisSide,
+  labelPosition,
+  labelOffset,
+  fontSize,
+}: {
+  lineWidth: number;
+  ignoreClip: boolean;
+  chartBounds: ChartBounds;
+  transformX: SharedValue<{ translateX: number }[]>;
+  uniqueValueIndices: Map<string, number>;
+  tick: number;
+  xScale: Scale;
+  yScale: Scale;
+  font?: Font | null;
+  labelRotate?: number;
+  labelColor: string;
+  secondaryXFont?: Font | null;
+  formatXLabel: (label: any) => string | { top: string; bottom: string };
+  isNumericalData: boolean;
+  ix: any[];
+  labelXCenter: boolean;
+  index: number;
+  arr: number[];
+  xTicksNormalized: number[];
+  y2: number;
+  y1: number;
+  lineColor: Color;
+  axisSide: "top" | "bottom";
+  labelPosition: "inset" | "outset";
+  labelOffset: number;
+  fontSize: number;
+}) {
+  const indexPosition = uniqueValueIndices.get(String(tick)) ?? tick;
+  const tickPosition = tick;
+
+  const p1 = vec(xScale(tickPosition), yScale(y2));
+  const p2 = vec(xScale(tickPosition), yScale(y1));
+
+  const val = isNumericalData ? tick : ix[indexPosition];
+
+  const contentXValue = formatXLabel(val);
+  const contentX =
+    typeof contentXValue === "string" ? contentXValue : contentXValue.top;
+  const contentXBottom =
+    typeof contentXValue === "string" ? null : contentXValue.bottom;
+  const labelWidth =
+    font
+      ?.getGlyphWidths?.(font.getGlyphIDs(contentX))
+      .reduce((sum, value) => sum + value, 0) ?? 0;
+  const labelWidthBottom =
+    contentXBottom && secondaryXFont
+      ? secondaryXFont
+          .getGlyphWidths(secondaryXFont.getGlyphIDs(contentXBottom))
+          .reduce((sum, value) => sum + value, 0)
+      : 0;
+
+  const canFitLabelContent = true;
+
+  let labelX = 0;
+  let labelXBottom = 0;
+  let centerX = 0;
+  if (labelXCenter) {
+    if (index < arr.length - 1) {
+      const nextTick = arr[index + 1];
+      centerX = xScale(tick) + (xScale(nextTick) - xScale(tick)) / 2;
+    } else if (index > 0) {
+      const prevTick = arr[index - 1];
+      const spacing = xScale(tick) - xScale(prevTick);
+      centerX = xScale(tick) + spacing / 2;
+    } else {
+      centerX = xScale(tick);
+    }
+    labelX = centerX - labelWidth / 2;
+    labelXBottom = centerX - labelWidthBottom / 2;
+  } else {
+    labelX = xScale(tick) - (labelWidth ?? 0) / 2;
+    labelXBottom = xScale(tick) - (labelWidthBottom ?? 0) / 2;
+  }
+
+  const labelY = (() => {
+    // bottom, outset
+    if (axisSide === "bottom" && labelPosition === "outset") {
+      return chartBounds.bottom + labelOffset + fontSize;
+    }
+    // bottom, inset
+    if (axisSide === "bottom" && labelPosition === "inset") {
+      return yScale(y2) - labelOffset;
+    }
+    // top, outset
+    if (axisSide === "top" && labelPosition === "outset") {
+      return yScale(y1) - labelOffset;
+    }
+    // top, inset
+    return yScale(y1) + fontSize + labelOffset;
+  })();
+  // Calculate origin and translate for label rotation
+  const origin: SkPoint | undefined = undefined;
+  const clip = useMemo(
+    () => (ignoreClip ? boundsToClip(chartBounds) : undefined),
+    [ignoreClip, chartBounds],
+  );
+
+  return (
+    <Group key={`x-tick-${String(tick)}`} clip={clip}>
+      {lineWidth > 0 ? (
+        <Group transform={transformX} clip={ignoreClip ? clip : undefined}>
+          <Line p1={p1} p2={p2} color={lineColor} strokeWidth={lineWidth} />
+        </Group>
+      ) : null}
+      {font && labelWidth && canFitLabelContent ? (
+        <Group transform={transformX} clip={ignoreClip ? clip : undefined}>
+          <Text
+            transform={[
+              {
+                translateX:
+                  index === 0
+                    ? 10
+                    : index === xTicksNormalized.length - 1
+                    ? -4
+                    : 0,
+              },
+            ]}
+            origin={origin}
+            color={labelColor}
+            text={contentX}
+            font={font}
+            y={labelY}
+            x={labelX}
+          />
+          {contentXBottom ? (
             <Text
               transform={[
                 {
@@ -255,45 +334,21 @@ export const XAxis = <
                       : index === xTicksNormalized.length - 1
                       ? -4
                       : 0,
-                  rotate: (Math.PI / 180) * (labelRotate ?? 0),
                 },
               ]}
               origin={origin}
               color={labelColor}
-              text={contentX}
-              font={font}
-              y={labelY}
-              x={labelX}
+              text={contentXBottom}
+              font={secondaryXFont || font}
+              y={labelY + 15}
+              x={labelXBottom}
             />
-            {contentXBottom ? (
-              <Text
-                transform={[
-                  {
-                    translateX:
-                      index === 0
-                        ? 10
-                        : index === xTicksNormalized.length - 1
-                        ? -4
-                        : 0,
-                    rotate: (Math.PI / 180) * (labelRotate ?? 0),
-                  },
-                ]}
-                origin={origin}
-                color={labelColor}
-                text={contentXBottom}
-                font={secondaryXFont || font}
-                y={labelY + 15}
-                x={labelXBottom}
-              />
-            ) : null}
-          </Group>
-        ) : null}
-      </Group>
-    );
-  });
-
-  return xAxisNodes;
-};
+          ) : null}
+        </Group>
+      ) : null}
+    </Group>
+  );
+}
 
 function useProcessAndReportTicks<
   RawData extends Record<string, unknown>,
@@ -317,6 +372,13 @@ function useProcessAndReportTicks<
   uniqueValueIndices: Map<string, number>;
   isNumericalData: boolean;
 }) {
+  const [visisbleTicks, setVisisbleTicks] = useState<{
+    ticksInRange: Array<number>;
+    ticksInRangeWithBuffer: Array<number>;
+  }>({
+    ticksInRange: [],
+    ticksInRangeWithBuffer: [],
+  });
   // --- Optimal Visible Ticks Reaction ---
   const scaleDomain = useMemo(() => xScale.domain(), [xScale]);
   const scaleRange = useMemo(() => xScale.range(), [xScale]);
@@ -377,6 +439,10 @@ function useProcessAndReportTicks<
   }, [processAndReportTicks]);
 
   // React to scroll changes on UI thread
+  const tickRange = useRef<{
+    first: ValueOf<RawData[XK]> | number | string | null;
+    last: ValueOf<RawData[XK]> | number | string | null;
+  } | null>(null);
   useAnimatedReaction(
     () => {
       // Prepare: Calculate first/last visible tick heuristic
@@ -393,6 +459,8 @@ function useProcessAndReportTicks<
       let firstVisibleTick: ValueOf<RawData[XK]> | number | string | null =
         null;
       let lastVisibleTick: ValueOf<RawData[XK]> | number | string | null = null;
+      const ticksInRange: Array<number> = [];
+      const ticksInRangeWithBuffer: Array<number> = [];
 
       for (const tick of xTicksNormalized) {
         const numericTick = Number(tick);
@@ -402,9 +470,17 @@ function useProcessAndReportTicks<
         const scrolledPixelX = tickPixelX - scrollX.value;
 
         if (
+          scrolledPixelX >= chartBounds.left - 50 &&
+          scrolledPixelX <= chartBounds.right + 50
+        ) {
+          ticksInRangeWithBuffer.push(tick);
+        }
+
+        if (
           scrolledPixelX >= chartBounds.left &&
           scrolledPixelX <= chartBounds.right
         ) {
+          ticksInRange.push(tick);
           if (firstVisibleTick === null) {
             firstVisibleTick = tick; // Found the first one
           }
@@ -416,7 +492,12 @@ function useProcessAndReportTicks<
         }
       }
       // Return the heuristic value
-      return { first: firstVisibleTick, last: lastVisibleTick };
+      return {
+        first: firstVisibleTick,
+        last: lastVisibleTick,
+        ticksInRange,
+        ticksInRangeWithBuffer,
+      };
     },
     (current, previous) => {
       // React: Trigger JS processing only if heuristic changes
@@ -428,6 +509,10 @@ function useProcessAndReportTicks<
         current.last !== previous.last
       ) {
         runOnJS(debouncedProcessAndReportTicks)(); // Call the debounced function
+        runOnJS(setVisisbleTicks)({
+          ticksInRange: current.ticksInRange,
+          ticksInRangeWithBuffer: current.ticksInRangeWithBuffer,
+        });
       }
     },
     // Dependencies for the reaction prepare block
@@ -440,7 +525,14 @@ function useProcessAndReportTicks<
       debouncedProcessAndReportTicks,
     ], // Use debounced function in deps
   );
+
+  return {
+    ticksInRange: visisbleTicks.ticksInRange,
+    ticksInRangeWithBuffer: visisbleTicks.ticksInRangeWithBuffer,
+  };
 }
+
+export const XAxis = memo(MemoizedXAxis);
 
 export const XAxisDefaults = {
   lineColor: "hsla(0, 0%, 0%, 0.25)",
