@@ -35,7 +35,7 @@ export const ScrollGestureHandler = ({
       width,
       height,
     };
-  }, []);
+  }, [x, y, width, height]);
 
   return (
     <GestureDetector gesture={gesture}>
