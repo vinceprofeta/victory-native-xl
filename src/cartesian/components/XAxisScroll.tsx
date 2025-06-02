@@ -127,14 +127,12 @@ export const MemoizedXAxis = <
   });
 
   return xTicksNormalized.map((tick, index, arr) => {
-    if (!ticksInRangeWithBuffer?.includes(tick)) {
-      return null;
-    }
     return (
       <MemoTickGroup
+        visible={ticksInRangeWithBuffer?.includes(tick)}
         key={`x-tick-${String(tick)}`}
         lineWidth={lineWidth}
-        ignoreClip={ignoreClip}
+        ignoreClip={true}
         chartBounds={chartBounds}
         transformX={transformX}
         uniqueValueIndices={uniqueValueIndices}
@@ -169,7 +167,8 @@ const MemoTickGroup = React.memo(TickGroup, (prev, next) => {
     prev.tick === next.tick &&
     prev.xScale === next.xScale &&
     prev.yScale === next.yScale &&
-    prev.index === next.index
+    prev.index === next.index &&
+    prev.visible === next.visible
   );
 });
 
@@ -199,6 +198,7 @@ function TickGroup({
   labelPosition,
   labelOffset,
   fontSize,
+  visible,
 }: {
   lineWidth: number;
   ignoreClip: boolean;
@@ -226,6 +226,7 @@ function TickGroup({
   labelPosition: "inset" | "outset";
   labelOffset: number;
   fontSize: number;
+  visible: boolean;
 }) {
   const indexPosition = uniqueValueIndices.get(String(tick)) ?? tick;
   const tickPosition = tick;
@@ -292,20 +293,21 @@ function TickGroup({
   })();
   // Calculate origin and translate for label rotation
   const origin: SkPoint | undefined = undefined;
-  const clip = useMemo(
-    () => (ignoreClip ? boundsToClip(chartBounds) : undefined),
-    [ignoreClip, chartBounds],
-  );
+  const actualClipPath = useMemo(() => {
+    return ignoreClip ? undefined : boundsToClip(chartBounds);
+  }, [ignoreClip, chartBounds]);
+
+  if (!visible) return null;
 
   return (
-    <Group key={`x-tick-${String(tick)}`} clip={clip}>
+    <Group key={`x-tick-${String(tick)}`} clip={actualClipPath}>
       {lineWidth > 0 ? (
-        <Group transform={transformX} clip={ignoreClip ? clip : undefined}>
+        <Group transform={transformX}>
           <Line p1={p1} p2={p2} color={lineColor} strokeWidth={lineWidth} />
         </Group>
       ) : null}
       {font && labelWidth && canFitLabelContent ? (
-        <Group transform={transformX} clip={ignoreClip ? clip : undefined}>
+        <Group transform={transformX}>
           <Text
             transform={[
               {
@@ -438,6 +440,19 @@ function useProcessAndReportTicks<
     return debounce(processAndReportTicks, 50); // Adjust debounce time (ms) as needed
   }, [processAndReportTicks]);
 
+  // NEW: Debounced function for updating the internal virtualization state
+  const debouncedSetVisibleTicks = useMemo(() => {
+    return debounce(
+      (data: {
+        ticksInRange: Array<number>;
+        ticksInRangeWithBuffer: Array<number>;
+      }) => {
+        setVisisbleTicks(data);
+      },
+      90,
+    ); // Using a 250 debounce, adjust as needed
+  }, []);
+
   // React to scroll changes on UI thread
   const tickRange = useRef<{
     first: ValueOf<RawData[XK]> | number | string | null;
@@ -456,6 +471,9 @@ function useProcessAndReportTicks<
         return r0 + ((value - d0) / domainSpan) * (r1 - r0);
       };
 
+      const totalWidth = chartBounds.right - chartBounds.left;
+      const renderWidth = totalWidth * 4; // Reverted to original totalWidth * 2
+
       let firstVisibleTick: ValueOf<RawData[XK]> | number | string | null =
         null;
       let lastVisibleTick: ValueOf<RawData[XK]> | number | string | null = null;
@@ -469,26 +487,34 @@ function useProcessAndReportTicks<
         const tickPixelX = scaleWorklet(numericTick);
         const scrolledPixelX = tickPixelX - scrollX.value;
 
-        if (
-          scrolledPixelX >= chartBounds.left - 50 &&
-          scrolledPixelX <= chartBounds.right + 50
-        ) {
-          ticksInRangeWithBuffer.push(tick);
+        // Optimization 1: Current tick is past the right buffered edge.
+        // If so, all subsequent ticks (in a sorted array) are also past, so we can stop.
+        if (scrolledPixelX > chartBounds.right + renderWidth) {
+          break;
         }
 
+        // Optimization 2: Current tick is before the left buffered edge.
+        // If so, this tick is not in the buffer or visible area. Skip to the next tick.
+        // Subsequent ticks might be in view, so we use 'continue' instead of 'break'.
+        if (scrolledPixelX < chartBounds.left - renderWidth) {
+          continue;
+        }
+
+        // If we reach here, the tick is within the renderable buffer zone:
+        // [chartBounds.left - renderWidth, chartBounds.right + renderWidth]
+        // So, it should always be added to ticksInRangeWithBuffer.
+        ticksInRangeWithBuffer.push(tick);
+
+        // Now, check if it's also within the strictly visible chartBounds for the callback.
         if (
           scrolledPixelX >= chartBounds.left &&
           scrolledPixelX <= chartBounds.right
         ) {
           ticksInRange.push(tick);
           if (firstVisibleTick === null) {
-            firstVisibleTick = tick; // Found the first one
+            firstVisibleTick = tick; // Found the first strictly visible tick
           }
-          lastVisibleTick = tick; // Keep updating last one found in range
-        } else if (firstVisibleTick !== null) {
-          // Optimization: if we found the first and are now past the right bound, we can stop.
-          // Requires ticks to be sorted, which xScale.ticks() usually ensures.
-          if (scrolledPixelX > chartBounds.right) break;
+          lastVisibleTick = tick; // Keep updating last strictly visible tick
         }
       }
       // Return the heuristic value
@@ -502,14 +528,43 @@ function useProcessAndReportTicks<
     (current, previous) => {
       // React: Trigger JS processing only if heuristic changes
       "worklet";
-      // Trigger if previous is null or if first/last differs
+
+      const _arraysEqual = (a, b) => {
+        if (a === b) return true;
+        if (a == null || b == null) return false;
+        if (a.length !== b.length) return false;
+        for (let i = 0; i < a.length; i++) {
+          if (a[i] !== b[i]) return false;
+        }
+        return true;
+      };
+
+      // Condition for onVisibleTicksChange (debouncedProcessAndReportTicks)
       if (
         previous === null ||
         current.first !== previous.first ||
         current.last !== previous.last
       ) {
         runOnJS(debouncedProcessAndReportTicks)(); // Call the debounced function
-        runOnJS(setVisisbleTicks)({
+      }
+
+      // Condition for setVisisbleTicks (virtualization state)
+      let shouldUpdateVirtualizationState = false;
+      if (previous === null) {
+        shouldUpdateVirtualizationState = true;
+      } else {
+        if (
+          !_arraysEqual(
+            current.ticksInRangeWithBuffer,
+            previous.ticksInRangeWithBuffer,
+          )
+        ) {
+          shouldUpdateVirtualizationState = true;
+        }
+      }
+
+      if (shouldUpdateVirtualizationState) {
+        runOnJS(debouncedSetVisibleTicks)({
           ticksInRange: current.ticksInRange,
           ticksInRangeWithBuffer: current.ticksInRangeWithBuffer,
         });
@@ -523,6 +578,7 @@ function useProcessAndReportTicks<
       chartBounds,
       xTicksNormalized,
       debouncedProcessAndReportTicks,
+      debouncedSetVisibleTicks,
     ], // Use debounced function in deps
   );
 
