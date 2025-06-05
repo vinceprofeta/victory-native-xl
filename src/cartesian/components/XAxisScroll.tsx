@@ -129,7 +129,7 @@ export const MemoizedXAxis = <
   return xTicksNormalized.map((tick, index, arr) => {
     return (
       <MemoTickGroup
-        visible={ticksInRangeWithBuffer?.includes(tick)}
+        visible={true}
         key={`x-tick-${String(tick)}`}
         lineWidth={lineWidth}
         ignoreClip={true}
@@ -563,12 +563,12 @@ function useProcessAndReportTicks<
         }
       }
 
-      if (shouldUpdateVirtualizationState) {
-        runOnJS(debouncedSetVisibleTicks)({
-          ticksInRange: current.ticksInRange,
-          ticksInRangeWithBuffer: current.ticksInRangeWithBuffer,
-        });
-      }
+      // if (shouldUpdateVirtualizationState) {
+      //   runOnJS(debouncedSetVisibleTicks)({
+      //     ticksInRange: current.ticksInRange,
+      //     ticksInRangeWithBuffer: current.ticksInRangeWithBuffer,
+      //   })
+      // }
     },
     // Dependencies for the reaction prepare block
     [
