@@ -39,14 +39,14 @@
     "react-fast-compare": "^3.2.2"
   },
   "peerDependencies": {
-    "@shopify/react-native-skia": ">=1.2.3",
+    "@shopify/react-native-skia": "*",
     "react": "*",
     "react-native": "*",
     "react-native-gesture-handler": ">=2.0.0",
     "react-native-reanimated": ">=3.0.0"
   },
   "devDependencies": {
-    "@shopify/react-native-skia": "^1.2.3",
+    "@shopify/react-native-skia": "v2.0.0-next.4",
     "@types/d3-scale": "^4.0.3",
     "@types/d3-shape": "^3.1.1",
     "@types/d3-zoom": "^3.0.8",
