@@ -142,7 +142,7 @@ export const scrollTransformGesture = ({
     })
     .onUpdate((e) => {
       const viewportWidth = dimensions.width || 300;
-      const width = (dimensions.totalContentWidth || 300) + 20;
+      const width = (dimensions.totalContentWidth || 300) + 30;
       const maxScroll = width - viewportWidth;
       const potentialNewValue = prevTranslateX.value - e.translationX;
       const rubberBandFactor = 0.55;
@@ -162,8 +162,8 @@ export const scrollTransformGesture = ({
 
     .onEnd((e) => {
       const viewportWidth = dimensions.width || 300;
-      const width = (dimensions.totalContentWidth || 300) + 20;
-      const maxScroll = Math.max(0, width - viewportWidth);
+      const width = dimensions.totalContentWidth || 300;
+      const maxScroll = Math.max(0, width - viewportWidth + 45);
       const currentScroll = scrollX.value;
 
       if (currentScroll < 0) {
@@ -171,7 +171,7 @@ export const scrollTransformGesture = ({
       } else if (currentScroll > maxScroll) {
         scrollX.value = withSpring(maxScroll, springConfig);
       } else {
-        const decayMaxScroll = width - viewportWidth + 25;
+        const decayMaxScroll = width - viewportWidth + 45;
         scrollX.value = withDecay({
           velocity: -e.velocityX,
           clamp: [0, decayMaxScroll],

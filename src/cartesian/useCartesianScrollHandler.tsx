@@ -48,7 +48,7 @@ export function useCartesianScrollHandler({
 
     const maxScroll = Math.max(
       0,
-      currentTotalContentWidth - viewportWidth + 20,
+      currentTotalContentWidth - viewportWidth + 35,
     );
     let newScrollX: number;
     const dataLengthChanged = currentDataLength !== previousDataLength;
@@ -150,11 +150,11 @@ export function useCartesianScrollHandler({
     scrollControllerRef,
     () => ({
       scrollTo: (domainX: number) => {
-        const offset = 40;
+        const offset = 10;
         const pixelX = xScale(domainX) - dimensions.width + offset;
         const maxScroll = Math.max(
           0,
-          dimensions.totalContentWidth - dimensions.width,
+          dimensions.totalContentWidth - dimensions.width + 45,
         );
         const clampedX = Math.max(0, Math.min(pixelX, maxScroll));
         scrollX.value = clampedX;
