@@ -130,6 +130,10 @@ export type AxisProps<RawData extends Record<string, unknown>, XK extends keyof 
         x: number;
         y: number;
     };
+    labelCenterOffset?: {
+        x: number;
+        y: number;
+    };
     labelPosition?: AxisLabelPosition | {
         x: AxisLabelPosition;
         y: AxisLabelPosition;
@@ -147,6 +151,7 @@ export type AxisProps<RawData extends Record<string, unknown>, XK extends keyof 
     isNumericalData?: boolean;
     ix?: InputFields<RawData>[XK][];
     ignoreClip?: boolean;
+    labelXCenter?: boolean;
 };
 export type AxisPropWithDefaults<RawData extends Record<string, unknown>, XK extends keyof InputFields<RawData>, YK extends keyof NumericalFields<RawData>> = Omit<Required<AxisProps<RawData, XK, YK>>, "xScale" | "yScale" | "yTicksNormalized" | "xTicksNormalized" | "font" | "tickValues" | "isNumericalData">;
 export type OptionalAxisProps<RawData extends Record<string, unknown>, XK extends keyof InputFields<RawData>, YK extends keyof NumericalFields<RawData>> = {
@@ -192,6 +197,7 @@ export type XAxisProps<RawData extends Record<string, unknown>, XK extends keyof
     chartBounds: ChartBounds;
     zoom?: ZoomTransform;
     secondaryXFont?: SkFont | null;
+    labelXCenter?: boolean;
 };
 export type YAxisInputProps<RawData extends Record<string, unknown>, YK extends keyof NumericalFields<RawData>> = {
     axisSide?: YAxisSide;
@@ -216,6 +222,7 @@ export type YAxisProps<RawData extends Record<string, unknown>, YK extends keyof
     yTicksNormalized: number[];
     yKeys: YK[];
     chartBounds: ChartBounds;
+    labelCenterOffset?: number;
 };
 export type FrameInputProps = {
     lineWidth?: SidedNumber;

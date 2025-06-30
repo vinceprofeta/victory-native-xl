@@ -8,7 +8,7 @@ const react_1 = __importDefault(require("react"));
 const react_native_1 = require("react-native");
 const react_native_skia_1 = require("@shopify/react-native-skia");
 const boundsToClip_1 = require("../../utils/boundsToClip");
-const YAxis = ({ xScale, yScale, yTicksNormalized, axisSide, labelPosition, labelOffset, labelColor, lineWidth, lineColor, font, formatYLabel = (label) => String(label), linePathEffect, chartBounds, }) => {
+const YAxis = ({ xScale, yScale, yTicksNormalized, axisSide, labelPosition, labelOffset, labelCenterOffset, labelColor, lineWidth, lineColor, font, formatYLabel = (label) => String(label), linePathEffect, chartBounds, }) => {
     var _a;
     const [x1 = 0, x2 = 0] = xScale.domain();
     const [_ = 0, y2 = 0] = yScale.domain();
@@ -17,7 +17,7 @@ const YAxis = ({ xScale, yScale, yTicksNormalized, axisSide, labelPosition, labe
         var _a, _b;
         const contentY = formatYLabel(tick);
         const labelWidth = (_b = (_a = font === null || font === void 0 ? void 0 : font.getGlyphWidths) === null || _a === void 0 ? void 0 : _a.call(font, font.getGlyphIDs(contentY)).reduce((sum, value) => sum + value, 0)) !== null && _b !== void 0 ? _b : 0;
-        const labelY = yScale(tick) + fontSize / 3;
+        const labelY = yScale(tick) + fontSize / 3 + (labelCenterOffset !== null && labelCenterOffset !== void 0 ? labelCenterOffset : 0);
         const labelX = (() => {
             // left, outset
             if (axisSide === "left" && labelPosition === "outset") {
@@ -41,7 +41,9 @@ const YAxis = ({ xScale, yScale, yTicksNormalized, axisSide, labelPosition, labe
               {linePathEffect ? linePathEffect : null}
             </react_native_skia_1.Line>
           </react_native_skia_1.Group>) : null}
-        {font ? canFitLabelContent && <react_native_skia_1.Text color={labelColor} text={contentY} font={font} y={labelY} x={labelX}/> : null}
+        {font
+                ? canFitLabelContent && (<react_native_skia_1.Text color={labelColor} text={contentY} font={font} y={labelY} x={labelX}/>)
+                : null}
       </react_1.default.Fragment>);
     });
     return yAxisNodes;

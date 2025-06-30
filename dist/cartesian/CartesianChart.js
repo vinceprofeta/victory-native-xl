@@ -444,7 +444,7 @@ function CartesianChartContent({ data, xKey, yKeys, padding, domainPadding, chil
                     : rescaledTicks} chartBounds={chartBounds}/>);
         })
         : null;
-    const XAxisComponents = hasMeasuredLayoutSize && (axisOptions || xAxis) ? (<XAxis_1.XAxis {...normalizedAxisProps.xAxis} xScale={xScale} yScale={zoomY.rescaleY(primaryYScale)} ix={_tData.ix} isNumericalData={isNumericalData} chartBounds={chartBounds} zoom={zoomX}/>) : null;
+    const XAxisComponents = hasMeasuredLayoutSize && (axisOptions || xAxis) ? (<XAxis_1.XAxis {...normalizedAxisProps.xAxis} xScale={xScale} yScale={zoomY.rescaleY(primaryYScale)} ix={_tData.ix} isNumericalData={isNumericalData} chartBounds={chartBounds} zoom={zoomX} secondaryXFont={axisOptions === null || axisOptions === void 0 ? void 0 : axisOptions.secondaryXFont} labelXCenter={axisOptions === null || axisOptions === void 0 ? void 0 : axisOptions.labelXCenter}/>) : null;
     const FrameComponent = hasMeasuredLayoutSize && (axisOptions || frame) ? (<Frame_1.Frame {...normalizedAxisProps.frame} xScale={xScale} yScale={primaryYScale}/>) : null;
     // Body of the chart.
     const body = (<react_native_skia_1.Canvas style={{ flex: 1 }} onLayout={onLayout}>

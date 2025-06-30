@@ -1,5 +1,2 @@
 import * as React from "react";
-export declare function useChartAxis({ yKeys, axisOptions, onScaleChange, xAxis, yAxis, frame, xScale, primaryYScale, chartBounds, yAxes, isNumericalData, _tData, hasMeasuredLayoutSize, scrollX, ignoreClip, onVisibleTicksChange, }: any): {
-    YAxisComponents: (React.JSX.Element | null)[] | null;
-    XAxisComponents: React.JSX.Element | null;
-};
+export declare function ChartAxis({ yKeys, axisOptions, onScaleChange, xAxis, yAxis, frame, xScale, primaryYScale, chartBounds, yAxes, isNumericalData, _tData, hasMeasuredLayoutSize, scrollX, ignoreClip, onVisibleTicksChange, zoomX, zoomY, }: any): React.JSX.Element;

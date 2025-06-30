@@ -60,6 +60,7 @@ type CartesianChartProps<RawData extends Record<string, unknown>, XK extends key
     }> | undefined> | null>;
     onVisibleTicksChange?: (visibleTickData: Array<ValueOf<RawData[any]>>) => void;
     scrollControllerRef?: MutableRefObject<ScrollToRef>;
+    maxScrollOffset?: number;
 };
 export declare function CartesianChartScroll<RawData extends Record<string, unknown>, XK extends keyof InputFields<RawData>, YK extends keyof NumericalFields<RawData>>({ transformState, children, ...rest }: CartesianChartProps<RawData, XK, YK>): React.JSX.Element;
 export {};

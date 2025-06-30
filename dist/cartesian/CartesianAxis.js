@@ -36,18 +36,19 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.useChartAxis = useChartAxis;
+exports.ChartAxis = ChartAxis;
 const React = __importStar(require("react"));
-const d3_zoom_1 = require("d3-zoom");
+const react_native_skia_1 = require("@shopify/react-native-skia");
 const react_fast_compare_1 = __importDefault(require("react-fast-compare"));
 const useFunctionRef_1 = require("../hooks/useFunctionRef");
 const XAxisScroll_1 = require("./components/XAxisScroll");
 const YAxis_1 = require("./components/YAxis");
 const useBuildChartAxis_1 = require("./hooks/useBuildChartAxis");
-const CartesianTransformContext_1 = require("./contexts/CartesianTransformContext");
 const tickHelpers_1 = require("../utils/tickHelpers");
 const normalizeYAxisTicks_1 = require("../utils/normalizeYAxisTicks");
-function useChartAxis({ yKeys, axisOptions, onScaleChange, xAxis, yAxis, frame, xScale, primaryYScale, chartBounds, yAxes, isNumericalData, _tData, hasMeasuredLayoutSize, scrollX, ignoreClip, onVisibleTicksChange, }) {
+const boundsToClip_1 = require("../utils/boundsToClip");
+const react_1 = require("react");
+function ChartAxis({ yKeys, axisOptions, onScaleChange, xAxis, yAxis, frame, xScale, primaryYScale, chartBounds, yAxes, isNumericalData, _tData, hasMeasuredLayoutSize, scrollX, ignoreClip, onVisibleTicksChange, zoomX, zoomY, }) {
     var _a;
     const xScaleRef = React.useRef(undefined);
     const yScaleRef = React.useRef(undefined);
@@ -58,11 +59,6 @@ function useChartAxis({ yKeys, axisOptions, onScaleChange, xAxis, yAxis, frame, 
         yKeys,
         axisOptions,
     });
-    // create a d3-zoom transform object based on the current transform state. This
-    // is used for rescaling the X and Y axes.
-    const transform = (0, CartesianTransformContext_1.useCartesianTransformContext)();
-    const zoomX = React.useMemo(() => new d3_zoom_1.ZoomTransform(transform.k, transform.tx, transform.ty), [transform.k, transform.tx, transform.ty]);
-    const zoomY = React.useMemo(() => new d3_zoom_1.ZoomTransform(transform.ky, transform.tx, transform.ty), [transform.ky, transform.tx, transform.ty]);
     const onScaleRef = (0, useFunctionRef_1.useFunctionRef)(onScaleChange);
     React.useEffect(() => {
         var _a, _b, _c, _d, _e;
@@ -76,9 +72,10 @@ function useChartAxis({ yKeys, axisOptions, onScaleChange, xAxis, yAxis, frame, 
             yScaleRef.current = primaryYScale;
             (_e = onScaleRef.current) === null || _e === void 0 ? void 0 : _e.call(onScaleRef, rescaledX, rescaledY);
         }
-    }, [onScaleChange, onScaleRef, xScale, zoomX, zoomY, primaryYScale]);
+    }, [onScaleRef, xScale, zoomX, zoomY, primaryYScale]);
     const YAxisComponents = hasMeasuredLayoutSize && (axisOptions || yAxes)
         ? (_a = normalizedAxisProps.yAxes) === null || _a === void 0 ? void 0 : _a.map((axis, index) => {
+            var _a;
             const yAxis = yAxes[index];
             if (!yAxis)
                 return null;
@@ -97,16 +94,19 @@ function useChartAxis({ yKeys, axisOptions, onScaleChange, xAxis, yAxis, frame, 
                     : primaryYScale.ticks(primaryAxisProps.tickCount);
             return (<YAxis_1.YAxis key={index} {...axis} xScale={zoomX.rescaleX(xScale)} yScale={rescaled} yTicksNormalized={index > 0 && !axis.tickValues
                     ? (0, normalizeYAxisTicks_1.normalizeYAxisTicks)(primaryTicksRescaled, primaryRescaled, rescaled)
-                    : rescaledTicks} chartBounds={chartBounds}/>);
+                    : rescaledTicks} chartBounds={chartBounds} labelCenterOffset={(_a = axisOptions === null || axisOptions === void 0 ? void 0 : axisOptions.labelCenterOffset) === null || _a === void 0 ? void 0 : _a.y}/>);
         })
         : null;
-    const XAxisComponents = hasMeasuredLayoutSize && (axisOptions || xAxis) ? (<XAxisScroll_1.XAxis {...normalizedAxisProps.xAxis} scrollX={scrollX} xScale={xScale} yScale={zoomY.rescaleY(primaryYScale)} ix={_tData.ix} isNumericalData={isNumericalData} chartBounds={chartBounds} zoom={zoomX} ignoreClip={ignoreClip} onVisibleTicksChange={onVisibleTicksChange} secondaryXFont={axisOptions.secondaryXFont}/>) : null;
-    // Memoize the body content
-    const chartBody = React.useMemo(() => {
-        return {
-            YAxisComponents,
-            XAxisComponents,
-        };
-    }, [YAxisComponents, XAxisComponents]);
-    return chartBody;
+    const xAxisClipRect = (0, react_1.useMemo)(() => (0, boundsToClip_1.boundsToClip)({
+        bottom: chartBounds.bottom + 50,
+        left: chartBounds.left,
+        right: chartBounds.right,
+        top: chartBounds.top,
+    }), [chartBounds.bottom, chartBounds.left, chartBounds.right, chartBounds.top]);
+    return (<>
+      {YAxisComponents}
+      <react_native_skia_1.Group clip={xAxisClipRect}>
+        {hasMeasuredLayoutSize && (axisOptions || xAxis) ? (<XAxisScroll_1.XAxis {...normalizedAxisProps.xAxis} scrollX={scrollX} xScale={xScale} yScale={zoomY.rescaleY(primaryYScale)} ix={_tData.ix} isNumericalData={isNumericalData} chartBounds={chartBounds} zoom={zoomX} ignoreClip={ignoreClip} onVisibleTicksChange={onVisibleTicksChange} secondaryXFont={axisOptions.secondaryXFont} labelXCenter={axisOptions.labelXCenter}/>) : null}
+      </react_native_skia_1.Group>
+    </>);
 }

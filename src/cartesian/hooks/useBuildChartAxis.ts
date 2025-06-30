@@ -155,6 +155,8 @@ export const useBuildChartAxis = <
       OptionalAxisProps<RawData, XK, YK> & { ignoreClip: boolean } = {
       ...CartesianAxisDefaultProps,
       ...axisOptions,
+      labelCenterOffset: axisOptions?.labelCenterOffset ?? { x: 0, y: 0 },
+      labelXCenter: axisOptions?.labelXCenter ?? false,
       ignoreClip: axisOptions?.ignoreClip ?? false,
       secondaryXFont: axisOptions?.secondaryXFont ?? null,
     };

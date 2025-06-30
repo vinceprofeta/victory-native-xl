@@ -569,7 +569,7 @@ export const XAxisDefaults = {
 } satisfies XAxisPropsWithDefaults<never, never>;
 
 // Helper function to check if two arrays are equal
-const _arraysEqual = (a, b) => {
+const _arraysEqual = (a: any, b: any) => {
   if (a === b) return true;
   if (a == null || b == null) return false;
   if (a.length !== b.length) return false;
