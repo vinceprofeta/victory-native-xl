@@ -11,6 +11,7 @@ export function useCartesianScrollHandler({
   xScale,
   scrollControllerRef,
   prevTranslateX,
+  maxScrollOffset = 35,
 }: {
   data: any[];
   dimensions: any;
@@ -19,6 +20,7 @@ export function useCartesianScrollHandler({
   xScale: any;
   scrollControllerRef: any;
   prevTranslateX: any;
+  maxScrollOffset?: number;
 }) {
   // Refs to track previous state for scroll adjustment logic
   const initialContentLength = useRef(data.length);
@@ -48,7 +50,7 @@ export function useCartesianScrollHandler({
 
     const maxScroll = Math.max(
       0,
-      currentTotalContentWidth - viewportWidth + 35,
+      currentTotalContentWidth - viewportWidth + maxScrollOffset,
     );
     let newScrollX: number;
     const dataLengthChanged = currentDataLength !== previousDataLength;

@@ -128,6 +128,7 @@ type CartesianChartProps<
     visibleTickData: Array<ValueOf<RawData[any]>>,
   ) => void;
   scrollControllerRef?: MutableRefObject<ScrollToRef>;
+  maxScrollOffset?: number;
 };
 
 export function CartesianChartScroll<
@@ -175,6 +176,7 @@ function CartesianChartContent<
   onScroll,
   onVisibleTicksChange,
   scrollControllerRef,
+  maxScrollOffset,
 }: CartesianChartProps<RawData, XK, YK>) {
   const [size, setSize] = React.useState({ width: 0, height: 0 });
   const chartBoundsRef = React.useRef<ChartBounds | undefined>(undefined);
@@ -302,6 +304,7 @@ function CartesianChartContent<
     xScale,
     scrollControllerRef,
     prevTranslateX,
+    maxScrollOffset,
   });
 
   // custom scroll ENDED ------------------------------------------------------------
