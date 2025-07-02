@@ -31,6 +31,8 @@ export function ChartAxis({
   onVisibleTicksChange,
   zoomX,
   zoomY,
+  scrollXDerived,
+  isScrolling,
 }: any) {
   const xScaleRef = React.useRef<ScaleLinear<number, number> | undefined>(
     undefined,
@@ -140,6 +142,8 @@ export function ChartAxis({
             onVisibleTicksChange={onVisibleTicksChange}
             secondaryXFont={axisOptions.secondaryXFont}
             labelXCenter={axisOptions.labelXCenter}
+            scrollXDerived={scrollXDerived}
+            isScrolling={isScrolling}
           />
         ) : null}
       </Group>

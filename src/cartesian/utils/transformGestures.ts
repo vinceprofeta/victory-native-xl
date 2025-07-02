@@ -113,24 +113,32 @@ const springConfig = {
   restSpeedThreshold: 0.01,
 };
 
+const DEFAULT_VIEWPORT_WIDTH = 300;
+
 export const scrollTransformGesture = ({
   scrollX,
   prevTranslateX,
   viewportWidth,
   dimensions,
   onScroll,
+  maxScrollOffset,
+  isScrolling,
 }: {
   scrollX: SharedValue<number>;
   prevTranslateX: SharedValue<number>;
   viewportWidth: number;
   dimensions: Partial<{ totalContentWidth: number; width: number }>;
   onScroll?: (data: any) => void;
+  maxScrollOffset?: number;
+  isScrolling: SharedValue<boolean>;
 }): PanGesture => {
+  const newZero = maxScrollOffset ? maxScrollOffset : 48; // 48 is the max scroll offset - give cushion
   const panGesture = Gesture.Pan()
     .activeOffsetX([-10, 10])
     .onStart(() => {
       cancelAnimation(scrollX);
       prevTranslateX.value = scrollX.value;
+      isScrolling.value = true;
     })
     .onChange((e) => {
       const chartWidth = dimensions.width || 300;
@@ -141,17 +149,24 @@ export const scrollTransformGesture = ({
         });
     })
     .onUpdate((e) => {
-      const viewportWidth = dimensions.width || 300;
-      const width = (dimensions.totalContentWidth || 300) + 30;
-      const maxScroll = width - viewportWidth;
-      const potentialNewValue = prevTranslateX.value - e.translationX;
+      isScrolling.value = true;
+      const viewportWidth = dimensions.width || DEFAULT_VIEWPORT_WIDTH;
+      const width = dimensions.totalContentWidth || DEFAULT_VIEWPORT_WIDTH;
+
+      // For reversed scroll: minScroll is negative (end/newest), maxScroll is positive (start/oldest)
+      const minScroll = -newZero; // End position (newest data)
+      const maxScroll = Math.max(0, width - viewportWidth); // Start position (oldest data)
+
+      const potentialNewValue = prevTranslateX.value + e.translationX;
       const rubberBandFactor = 0.55;
 
-      if (potentialNewValue < 0) {
-        const overscroll = -potentialNewValue;
+      if (potentialNewValue < minScroll) {
+        // Too far toward newest data (beyond end)
+        const overscroll = minScroll - potentialNewValue;
         const dampedOverscroll = overscroll * rubberBandFactor;
-        scrollX.value = -dampedOverscroll;
+        scrollX.value = minScroll - dampedOverscroll;
       } else if (potentialNewValue > maxScroll) {
+        // Too far toward oldest data (beyond start)
         const overscroll = potentialNewValue - maxScroll;
         const dampedOverscroll = overscroll * rubberBandFactor;
         scrollX.value = maxScroll + dampedOverscroll;
@@ -163,19 +178,31 @@ export const scrollTransformGesture = ({
     .onEnd((e) => {
       const viewportWidth = dimensions.width || 300;
       const width = dimensions.totalContentWidth || 300;
-      const maxScroll = Math.max(0, width - viewportWidth + 45);
+
+      // For reversed scroll: same bounds as onUpdate
+      const minScroll = -newZero; // End position (newest data)
+      const maxScroll = Math.max(0, width - viewportWidth); // Start position (oldest data)
       const currentScroll = scrollX.value;
 
-      if (currentScroll < 0) {
-        scrollX.value = withSpring(0, springConfig);
-      } else if (currentScroll > maxScroll) {
-        scrollX.value = withSpring(maxScroll, springConfig);
-      } else {
-        const decayMaxScroll = width - viewportWidth + 45;
-        scrollX.value = withDecay({
-          velocity: -e.velocityX,
-          clamp: [0, decayMaxScroll],
+      if (currentScroll < minScroll) {
+        scrollX.value = withSpring(minScroll, springConfig, () => {
+          isScrolling.value = false;
         });
+      } else if (currentScroll > maxScroll) {
+        scrollX.value = withSpring(maxScroll, springConfig, () => {
+          isScrolling.value = false;
+        });
+        isScrolling.value = false;
+      } else {
+        scrollX.value = withDecay(
+          {
+            velocity: e.velocityX,
+            clamp: [minScroll, maxScroll],
+          },
+          () => {
+            isScrolling.value = false;
+          },
+        );
       }
     });
 

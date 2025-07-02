@@ -176,7 +176,7 @@ function CartesianChartContent<
   onScroll,
   onVisibleTicksChange,
   scrollControllerRef,
-  maxScrollOffset,
+  maxScrollOffset = 50,
 }: CartesianChartProps<RawData, XK, YK>) {
   const [size, setSize] = React.useState({ width: 0, height: 0 });
   const chartBoundsRef = React.useRef<ChartBounds | undefined>(undefined);
@@ -236,8 +236,9 @@ function CartesianChartContent<
     const primaryYAxis = yAxes[0];
     const primaryYScale = primaryYAxis.yScale;
     const chartBounds = {
-      left: xScale(viewport?.x?.[0] ?? xScale.domain().at(0) ?? 0),
-      right: xScale(viewport?.x?.[1] ?? xScale.domain().at(-1) ?? 0),
+      left: xScale(viewport?.x?.[0] ?? xScale.domain().at(0) ?? 0) || xScale(0),
+      right:
+        xScale(viewport?.x?.[1] ?? xScale.domain().at(-1) ?? 0) || xScale(0),
       top: primaryYScale(
         viewport?.y?.[1] ?? (primaryYScale.domain().at(0) || 0),
       ),
@@ -294,7 +295,8 @@ function CartesianChartContent<
 
   // Initialize scroll values to 0. The effect will set the correct initial/updated position.
   // custom scroll started ------------------------------------------------------------
-  const scrollX = useSharedValue(0);
+  const scrollX = useSharedValue(maxScrollOffset ? -maxScrollOffset : 0);
+  const isScrolling = useSharedValue(false);
   const prevTranslateX = useSharedValue(0);
   useCartesianScrollHandler({
     data,
@@ -305,6 +307,7 @@ function CartesianChartContent<
     scrollControllerRef,
     prevTranslateX,
     maxScrollOffset,
+    isScrolling,
   });
 
   // custom scroll ENDED ------------------------------------------------------------
@@ -327,8 +330,12 @@ function CartesianChartContent<
         y: number,
       ) => {
         "worklet";
-        // Adjust x position for scroll in a single place
-        const adjustedX = x + scrollX.value;
+        // Adjust x position for reversed scroll - use same calculation as scrollXDerived
+        const scrollXDerived =
+          (scrollX.value || 0) -
+          (dimensions.totalContentWidth || 0) +
+          (size.width || 0);
+        const adjustedX = x - scrollXDerived;
         const idx = findClosestPoint(tData.value.ox, adjustedX);
 
         if (typeof idx !== "number") return;
@@ -375,7 +382,8 @@ function CartesianChartContent<
           try {
             v.matchedIndex.value = idx;
             v.x.value.value = tData.value.ix[idx]!;
-            v.x.position.value = asNumber(tData.value.ox[idx]) - scrollX.value;
+            // For scrubber position: add scroll transform since scrubber renders outside transformed group
+            v.x.position.value = asNumber(tData.value.ox[idx]) + scrollXDerived;
             for (const yk in v.y) {
               if (isInYs(yk)) {
                 v.y[yk].value.value = asNumber(tData.value.y[yk].i[idx]);
@@ -389,7 +397,19 @@ function CartesianChartContent<
 
         lastIdx.value = idx;
       },
-    [tData, scrollX, chartHeight, yScaleTop, yScaleBottom, yKeys, lastIdx],
+    [
+      tData,
+      scrollX,
+      chartHeight,
+      yScaleTop,
+      yScaleBottom,
+      yKeys,
+      lastIdx,
+      dimensions,
+      size,
+      dimensions.totalContentWidth,
+      size.width,
+    ],
   );
 
   if (actionsRef) {
@@ -435,17 +455,6 @@ function CartesianChartContent<
     }
   }, [chartBounds, onChartBoundsRef]);
 
-  const renderArg: CartesianChartRenderArg<RawData, YK> = {
-    xScale,
-    xTicks: xTicksNormalized,
-    yScale: primaryYScale,
-    yTicks: primaryYAxis.yTicksNormalized,
-    chartBounds,
-    canvasSize: size,
-    points,
-    scrollX,
-  };
-
   const clipRect = boundsToClip(chartBounds);
 
   const FrameComponent =
@@ -472,6 +481,8 @@ function CartesianChartContent<
           viewportWidth: size.width,
           dimensions,
           onScroll,
+          maxScrollOffset,
+          isScrolling,
         }),
       );
     }
@@ -486,10 +497,14 @@ function CartesianChartContent<
     onScroll,
   ]);
 
-  const transform = useDerivedValue(() => {
-    return [{ translateX: -scrollX.value }];
+  const scrollXDerived = useDerivedValue(() => {
+    return (
+      (scrollX.value || 0) - (dimensions.totalContentWidth || 0) + size.width
+    );
   });
-
+  const transform = useDerivedValue(() => {
+    return [{ translateX: scrollXDerived.value || 0 }];
+  });
   // create a d3-zoom transform object based on the current transform state. This
   // is used for rescaling the X and Y axes.
   const transformValues = useCartesianTransformContext();
@@ -511,6 +526,17 @@ function CartesianChartContent<
       ),
     [transformValues.ky, transformValues.tx, transformValues.ty],
   );
+
+  const renderArg: CartesianChartRenderArg<RawData, YK> = {
+    xScale,
+    xTicks: xTicksNormalized,
+    yScale: primaryYScale,
+    yTicks: primaryYAxis.yTicksNormalized,
+    chartBounds,
+    canvasSize: size,
+    points,
+    scrollX: scrollXDerived,
+  };
 
   return (
     <GestureHandlerRootView style={{ flex: 1, overflow: "hidden" }}>
@@ -534,6 +560,8 @@ function CartesianChartContent<
           onVisibleTicksChange={onVisibleTicksChange}
           zoomX={zoomX}
           zoomY={zoomY}
+          scrollXDerived={scrollXDerived}
+          isScrolling={isScrolling}
         />
         <Group>
           <CartesianChartProvider yScale={primaryYScale} xScale={xScale}>
@@ -553,7 +581,6 @@ function CartesianChartContent<
         gestureLongPressDelay={gestureLongPressDelay}
         composedGesture={composedGesture}
         dimensions={dimensions}
-        scrollX={scrollX}
       />
     </GestureHandlerRootView>
   );
@@ -562,7 +589,6 @@ function CartesianChartContent<
 const MemoizedGesture = React.memo(GestureHandlerComponent, (prev, next) => {
   return (
     prev.handleTouch === next.handleTouch &&
-    prev.scrollX === next.scrollX &&
     prev.chartPressConfig === next.chartPressConfig &&
     prev.gestureLongPressDelay === next.gestureLongPressDelay &&
     prev.dimensions === next.dimensions &&
@@ -578,7 +604,6 @@ function GestureHandlerComponent({
   gestureLongPressDelay,
   composedGesture,
   dimensions,
-  scrollX,
 }: any) {
   /**
    * Touch gesture is a modified Pan gesture handler that allows for multiple presses:
@@ -712,10 +737,6 @@ function GestureHandlerComponent({
   }
 
   return (
-    <ScrollGestureHandler
-      gesture={composedGesture}
-      dimensions={dimensions}
-      derivedScrollX={scrollX}
-    />
+    <ScrollGestureHandler gesture={composedGesture} dimensions={dimensions} />
   );
 }

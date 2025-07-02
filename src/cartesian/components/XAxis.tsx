@@ -129,6 +129,7 @@ export const XAxis = <
       rotateOffset: number;
     } => {
       let rotateOffset = 0;
+
       let origin: SkPoint | undefined;
 
       // return defaults if no labelRotate is provided

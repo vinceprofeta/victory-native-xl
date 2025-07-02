@@ -1,7 +1,5 @@
 import { useRef, useEffect, useImperativeHandle } from "react";
-
-// Initialize scroll values to 0. The effect will set the correct initial/updated position.
-// This is.... not great...
+import type { SharedValue } from "react-native-reanimated";
 
 export function useCartesianScrollHandler({
   data,
@@ -12,6 +10,7 @@ export function useCartesianScrollHandler({
   scrollControllerRef,
   prevTranslateX,
   maxScrollOffset = 35,
+  isScrolling,
 }: {
   data: any[];
   dimensions: any;
@@ -21,151 +20,75 @@ export function useCartesianScrollHandler({
   scrollControllerRef: any;
   prevTranslateX: any;
   maxScrollOffset?: number;
+  isScrolling: SharedValue<boolean>;
 }) {
-  // Refs to track previous state for scroll adjustment logic
-  const initialContentLength = useRef(data.length);
-  const initialLastDataValue = useRef(data[data.length - 1]?.ts);
-  const prevTotalContentWidthRef = useRef<number | null>(null);
-  const isInitialLoadRef = useRef(true);
+  // Refs to track previous state for scroll-to-end logic
   const prevViewportXRef = useRef<[number, number] | null>(viewport?.x || null);
-  const lastValueTs = data[data.length - 1]?.ts;
+  const totalContentWidth = dimensions.totalContentWidth;
 
   useEffect(() => {
-    const currentTotalContentWidth = dimensions.totalContentWidth;
-    const viewportWidth = dimensions.width;
-    const previousTotalContentWidth = prevTotalContentWidthRef.current;
-    const currentDataLength = data.length;
-    const previousDataLength = initialContentLength.current;
-
-    if (viewportWidth <= 0 || currentTotalContentWidth < 0) {
-      prevViewportXRef.current = viewport?.x || null;
-      return;
+    // Since scroll view is reversed, "end" is at maxScrollOffset (not maxScroll)
+    if (totalContentWidth > 0) {
+      /// the library content grows which is very annoying. continue to scroll to the end until the content is not growing anymore.
     }
+    const scrollToEndPosition = maxScrollOffset ? -maxScrollOffset : 0;
+    let shouldScrollToEnd = false;
 
-    if (data.length === 0) {
-      scrollX.value = 0;
-      prevTranslateX.value = 0;
-      return;
-    }
-
-    const maxScroll = Math.max(
-      0,
-      currentTotalContentWidth - viewportWidth + maxScrollOffset,
-    );
-    let newScrollX: number;
-    const dataLengthChanged = currentDataLength !== previousDataLength;
-    const dataPrepended =
-      dataLengthChanged && currentDataLength > previousDataLength;
-    const viewportXChanged =
-      viewport?.x &&
-      (prevViewportXRef?.current?.[0] !== viewport?.x?.[0] ||
-        prevViewportXRef?.current?.[1] !== viewport?.x?.[1]);
-
-    // timne frame changed - completelt new data - reset state
-    if (
-      initialLastDataValue.current &&
-      initialLastDataValue.current !== lastValueTs &&
-      lastValueTs
-    ) {
-      // if the last value was changed. we did not prepend data we totally reset the data. Scroll to end.
-      // reset states
-      console.log("Scroll Effect: Date Range Changed");
-      scrollX.value = maxScroll;
-      isInitialLoadRef.current = true;
-
-      // reset state
-      prevTotalContentWidthRef.current = currentTotalContentWidth;
-      initialContentLength.current = currentDataLength;
-      initialLastDataValue.current = lastValueTs;
-      prevViewportXRef.current =
-        viewport?.x || (null as [number, number] | null);
-
-      setTimeout(() => {
-        isInitialLoadRef.current = false;
-      }, 100);
-      return;
-    }
-
-    if (isInitialLoadRef.current) {
-      newScrollX = maxScroll;
-      console.log(
-        `Scroll Effect: Initial Load. Scrolling to end: ${newScrollX}`,
-      );
-      isInitialLoadRef.current = false;
-    } else if (!dataPrepended && viewportXChanged) {
-      newScrollX = maxScroll;
-
-      console.log(
-        `Scroll Effect: Viewport X Changed. Scrolling to end: ${newScrollX}`,
-      );
-    } else if (previousTotalContentWidth !== null) {
-      if (dataPrepended) {
-        const deltaWidth = currentTotalContentWidth - previousTotalContentWidth;
-        newScrollX = scrollX.value + deltaWidth;
-        console.log("Scroll Effect: Data Prepended");
-      } else {
-        newScrollX = scrollX.value;
-        console.log(
-          `Scroll Effect: No Prepend / Only Dim Change. Keeping scroll=${scrollX.value.toFixed(
-            2,
-          )}`,
-        );
-      }
+    if (prevViewportXRef.current !== viewport?.x) {
+      shouldScrollToEnd = false;
     } else {
-      console.warn(
-        "Scroll Effect: Unexpected state - previousTotalContentWidth is null after initial load. Defaulting to maxScroll.",
-      );
-      newScrollX = maxScroll;
+      shouldScrollToEnd = true;
     }
 
-    const clampedScrollX = Math.max(0, Math.min(maxScroll, newScrollX));
-    console.log(
-      `Scroll Effect: Clamping. MaxScroll=${maxScroll.toFixed(
-        2,
-      )}, CalcScroll=${newScrollX.toFixed(
-        2,
-      )}, ClampedScroll=${clampedScrollX.toFixed(2)}`,
-    );
-
-    if (scrollX.value !== clampedScrollX) {
-      scrollX.value = clampedScrollX;
-    }
-    if (prevTranslateX.value !== clampedScrollX) {
-      prevTranslateX.value = clampedScrollX;
+    if (shouldScrollToEnd) {
+      scrollX.value = scrollToEndPosition;
+      prevTranslateX.value = scrollToEndPosition;
     }
 
-    prevTotalContentWidthRef.current = currentTotalContentWidth;
-    initialContentLength.current = currentDataLength;
-    initialLastDataValue.current = lastValueTs;
-    prevViewportXRef.current = viewport?.x || (null as [number, number] | null);
+    // Update tracking refs
+    prevViewportXRef.current = viewport?.x || null;
   }, [
-    dimensions.totalContentWidth,
-    dimensions.width,
-    data.length,
-    scrollX,
-    prevTranslateX,
+    maxScrollOffset,
     viewport?.x,
+    prevTranslateX,
+    scrollX,
+    totalContentWidth,
   ]);
 
   // Allows us to control the scroll from the parent component
   useImperativeHandle(
     scrollControllerRef,
     () => ({
-      scrollTo: (domainX: number) => {
-        const offset = 10;
-        const pixelX = xScale(domainX) - dimensions.width + offset;
-        const maxScroll = Math.max(
-          0,
-          dimensions.totalContentWidth - dimensions.width + 45,
+      scrollTo: (ts: number, offset = -20) => {
+        const maxScrollValue = maxScrollOffset
+          ? -maxScrollOffset + offset
+          : offset;
+        const pixelX = xScale(ts);
+        const totalWidth = dimensions.totalContentWidth;
+        const viewportWidth = dimensions.width;
+
+        // Calculate scroll position so that the ts aligns with right edge
+        const rawScroll = totalWidth - pixelX + offset;
+
+        // Clamp to [0, maxScroll] range for reversed scroll
+        const maxScroll = Math.max(maxScrollValue, totalWidth - viewportWidth);
+        const clampedX = Math.max(
+          maxScrollValue,
+          Math.min(rawScroll, maxScroll),
         );
-        const clampedX = Math.max(0, Math.min(pixelX, maxScroll));
+
         scrollX.value = clampedX;
         prevTranslateX.value = clampedX;
+      },
+      scrollToEnd: () => {
+        const endScroll = maxScrollOffset ? -maxScrollOffset : 0;
+        scrollX.value = endScroll;
+        prevTranslateX.value = endScroll;
       },
       getScrollX() {
         return scrollX.value;
       },
     }),
-    [xScale, dimensions, scrollX, prevTranslateX],
+    [xScale, dimensions, scrollX, prevTranslateX, maxScrollOffset],
   );
 }

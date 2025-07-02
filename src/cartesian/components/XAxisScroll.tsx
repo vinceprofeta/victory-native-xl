@@ -77,15 +77,19 @@ export const MemoizedXAxis = <
   onVisibleTicksChange,
   secondaryXFont,
   labelXCenter = false,
+  scrollXDerived,
+  isScrolling,
 }: XAxisProps<RawData, XK> & {
   scrollX: SharedValue<number>;
   ignoreClip: boolean;
   onVisibleTicksChange?: (visibleTickData: Array<ValueOf<RawData[XK]>>) => void;
+  scrollXDerived: SharedValue<number>;
+  isScrolling: SharedValue<boolean>;
 }) => {
   const transformX = useDerivedValue(() => {
     "worklet";
-    return [{ translateX: -scrollX.value }];
-  }, [scrollX]);
+    return [{ translateX: scrollXDerived.value }];
+  }, [scrollXDerived]);
 
   // Create a mapping of unique values to their first occurrence index
   const uniqueValueIndices = useMemo(() => {
@@ -118,6 +122,7 @@ export const MemoizedXAxis = <
   // Ref to store the last reported visible ticks on the JS thread
   const { ticksInRangeWithBuffer } = useProcessAndReportTicks({
     scrollX,
+    scrollXDerived,
     chartBounds,
     xTicksNormalized,
     onVisibleTicksChange,
@@ -125,6 +130,7 @@ export const MemoizedXAxis = <
     isNumericalData,
     ix,
     xScale,
+    isScrolling,
   });
 
   return xTicksNormalized.map((tick, index, arr) => {
@@ -305,35 +311,37 @@ function TickGroup({
 
   return (
     <Group key={`x-tick-${String(tick)}`} clip={actualClipPath}>
-      {lineWidth > 0 ? (
-        <Group transform={transformX}>
-          <Line p1={p1} p2={p2} color={lineColor} strokeWidth={lineWidth} />
-        </Group>
-      ) : null}
-      {font && labelWidth && canFitLabelContent ? (
-        <Group transform={transformX}>
-          <Text
-            transform={[{ translateX }]}
-            origin={origin}
-            color={labelColor}
-            text={contentX}
-            font={font}
-            y={labelY}
-            x={labelX}
-          />
-          {contentXBottom ? (
+      <Group transform={transformX}>
+        {lineWidth > 0 ? (
+          <Group>
+            <Line p1={p1} p2={p2} color={lineColor} strokeWidth={lineWidth} />
+          </Group>
+        ) : null}
+        {font && labelWidth && canFitLabelContent ? (
+          <Group>
             <Text
               transform={[{ translateX }]}
               origin={origin}
               color={labelColor}
-              text={contentXBottom}
-              font={secondaryXFont || font}
-              y={labelY + 15}
-              x={labelXBottom}
+              text={contentX}
+              font={font}
+              y={labelY}
+              x={labelX}
             />
-          ) : null}
-        </Group>
-      ) : null}
+            {contentXBottom ? (
+              <Text
+                transform={[{ translateX }]}
+                origin={origin}
+                color={labelColor}
+                text={contentXBottom}
+                font={secondaryXFont || font}
+                y={labelY + 15}
+                x={labelXBottom}
+              />
+            ) : null}
+          </Group>
+        ) : null}
+      </Group>
     </Group>
   );
 }
@@ -343,6 +351,7 @@ function useProcessAndReportTicks<
   XK extends keyof InputFields<RawData>,
 >({
   scrollX,
+  scrollXDerived,
   chartBounds,
   xTicksNormalized,
   onVisibleTicksChange,
@@ -350,6 +359,7 @@ function useProcessAndReportTicks<
   isNumericalData,
   ix,
   xScale,
+  isScrolling,
 }: {
   scrollX: SharedValue<number>;
   ix: InputFields<RawData>[XK][];
@@ -359,6 +369,8 @@ function useProcessAndReportTicks<
   onVisibleTicksChange?: (visibleTickData: Array<ValueOf<RawData[XK]>>) => void;
   uniqueValueIndices: Map<string, number>;
   isNumericalData: boolean;
+  scrollXDerived: SharedValue<number>;
+  isScrolling: SharedValue<boolean>;
 }) {
   const [visisbleTicks, setVisisbleTicks] = useState<{
     ticksInRange: Array<number>;
@@ -373,12 +385,11 @@ function useProcessAndReportTicks<
     ValueOf<RawData[XK]>
   > | null>(null);
 
-  const processAndReportTicks = useMemo(() => {
+  const handleProcessAndReportTicks = useMemo(() => {
     return () => {
       if (!onVisibleTicksChange) return;
 
       const actualVisibleData: Array<ValueOf<RawData[XK]>> = [];
-      const currentScrollX = scrollX.value; // Read latest scroll value
 
       xTicksNormalized.forEach((tick) => {
         const numericTick = Number(tick);
@@ -386,7 +397,7 @@ function useProcessAndReportTicks<
 
         // Use the JS scale here
         const tickPixelX = xScale(numericTick);
-        const scrolledPixelX = tickPixelX - currentScrollX;
+        const scrolledPixelX = tickPixelX + scrollXDerived.value;
 
         if (
           scrolledPixelX >= chartBounds.left &&
@@ -408,32 +419,27 @@ function useProcessAndReportTicks<
     };
   }, [
     onVisibleTicksChange,
-    scrollX, // Include scrollX to read latest value inside
+    scrollX, // KEEP: Include scrollX to read latest value inside
     xTicksNormalized,
     xScale, // Use JS Scale
     chartBounds,
     uniqueValueIndices,
     isNumericalData,
     ix,
+    scrollXDerived,
   ]);
 
   // Debounce the JS processing function
   const debouncedProcessAndReportTicks = useMemo(() => {
-    return debounce(processAndReportTicks, 50); // Adjust debounce time (ms) as needed
-  }, [processAndReportTicks]);
+    return debounce(handleProcessAndReportTicks, 50); // Adjust debounce time (ms) as needed
+  }, [handleProcessAndReportTicks]);
 
   // NEW: Debounced function for updating the internal virtualization state
-  const debouncedSetVisibleTicks = useMemo(() => {
-    return debounce(
-      (data: {
-        ticksInRange: Array<number>;
-        ticksInRangeWithBuffer: Array<number>;
-      }) => {
-        setVisisbleTicks(data);
-      },
-      90,
-    ); // Using a 90ms debounce, adjust as needed
-  }, []);
+  // const debouncedSetVisibleTicks = useMemo(() => {
+  //   return debounce((data: { ticksInRange: Array<number>; ticksInRangeWithBuffer: Array<number> }) => {
+  //     setVisisbleTicks(data)
+  //   }, 90) // Using a 90ms debounce, adjust as needed
+  // }, [])
 
   useAnimatedReaction(
     () => {
@@ -448,11 +454,11 @@ function useProcessAndReportTicks<
         return r0 + ((value - d0) / domainSpan) * (r1 - r0);
       };
 
-      const chartBoundsRight = chartBounds.right + 10;
-      const chartBoundsLeft = chartBounds.left - 10;
+      const chartBoundsRight = chartBounds.right;
+      const chartBoundsLeft = chartBounds.left;
 
       const totalWidth = chartBoundsRight - chartBoundsLeft;
-      const renderWidth = totalWidth * 4; // Reverted to original totalWidth * 2
+      const renderWidth = totalWidth * 4;
 
       let firstVisibleTick: ValueOf<RawData[XK]> | number | string | null =
         null;
@@ -483,6 +489,7 @@ function useProcessAndReportTicks<
         // If we reach here, the tick is within the renderable buffer zone:
         // [chartBoundsLeft - renderWidth, chartBoundsRight + renderWidth]
         // So, it should always be added to ticksInRangeWithBuffer.
+        // this is for the virtualization state
         ticksInRangeWithBuffer.push(tick);
 
         // Now, check if it's also within the strictly visible chartBounds for the callback.
@@ -503,17 +510,16 @@ function useProcessAndReportTicks<
         last: lastVisibleTick,
         ticksInRange,
         ticksInRangeWithBuffer,
+        isScrolling: isScrolling.value,
       };
     },
     (current, previous) => {
-      // React: Trigger JS processing only if heuristic changes
       "worklet";
-
-      // Condition for onVisibleTicksChange (debouncedProcessAndReportTicks)
       if (
-        previous === null ||
-        current.first !== previous.first ||
-        current.last !== previous.last
+        isScrolling.value &&
+        (previous === null ||
+          current.first !== previous.first ||
+          current.last !== previous.last)
       ) {
         runOnJS(debouncedProcessAndReportTicks)(); // Call the debounced function
       }
@@ -543,7 +549,7 @@ function useProcessAndReportTicks<
       chartBounds,
       xTicksNormalized,
       debouncedProcessAndReportTicks,
-      debouncedSetVisibleTicks,
+      isScrolling,
     ], // Use debounced function in deps
   );
 
