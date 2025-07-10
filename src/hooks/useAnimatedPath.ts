@@ -1,6 +1,7 @@
 import { Skia, type SkPath } from "@shopify/react-native-skia";
 import * as React from "react";
 import {
+  runOnJS,
   useDerivedValue,
   useSharedValue,
   withDecay,
@@ -39,33 +40,48 @@ export const useAnimatedPath = (
   animConfig: PathAnimationConfig = { type: "timing", duration: 300 },
 ) => {
   const t = useSharedValue(0);
-  const [prevPath, setPrevPath] = React.useState(path);
+  const prevPath = useSharedValue(path);
 
   React.useEffect(() => {
     t.value = 0;
+
+    const callback = (finished?: boolean) => {
+      if (finished) {
+        // When the animation is complete, update prevPath to the current path
+        // so that the next animation starts from the correct spot.
+        runOnJS(setPrevPath)(path);
+      }
+    };
     if (isWithTimingConfig(animConfig)) {
-      t.value = withTiming(1, animConfig);
+      t.value = withTiming(1, animConfig, callback);
     } else if (isWithSpringConfig(animConfig)) {
-      t.value = withSpring(1, animConfig);
+      t.value = withSpring(1, animConfig, callback);
     } else if (isWithDecayConfig(animConfig)) {
       t.value = withDecay(animConfig);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [path, t]);
+  }, [path, animConfig, t]);
+
+  const setPrevPath = (newPath: SkPath) => {
+    prevPath.value = newPath;
+  };
 
   const currentPath = useDerivedValue<SkPath>(() => {
     if (t.value !== 1) {
       // Match floating-point numbers in a string and normalize their precision as this is essential for Skia to interpolate paths
       // Without normalization, Skia won't be able to interpolate paths in Pie slice shapes
       // This normalization is really only needed for pie charts at the moment
-      const normalizePrecision = (path: string): string =>
-        path.replace(/(\d+\.\d+)/g, (match) => parseFloat(match).toFixed(3));
+      const normalizePrecision = (p: string): string =>
+        p.replace(/(\d+\.\d+)/g, (match) =>
+          Number.parseFloat(match).toFixed(3),
+        );
       const pathNormalized = Skia.Path.MakeFromSVGString(
         normalizePrecision(path.toSVGString()),
       );
       const prevPathNormalized = Skia.Path.MakeFromSVGString(
-        normalizePrecision(prevPath.toSVGString()),
+        normalizePrecision(prevPath.value.toSVGString()),
       );
+
       if (
         pathNormalized &&
         prevPathNormalized &&
@@ -77,10 +93,6 @@ export const useAnimatedPath = (
 
     return path;
   });
-
-  React.useEffect(() => {
-    setPrevPath(currentPath.value);
-  }, [currentPath, path]);
 
   return currentPath;
 };
