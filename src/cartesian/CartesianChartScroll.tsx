@@ -574,14 +574,16 @@ function CartesianChartContent<
         </Group>
         {hasMeasuredLayoutSize && renderOutside?.(renderArg)}
       </Canvas>
-      <MemoizedGesture
-        chartPressState={chartPressState}
-        handleTouch={handleTouch}
-        chartPressConfig={chartPressConfig}
-        gestureLongPressDelay={gestureLongPressDelay}
-        composedGesture={composedGesture}
-        dimensions={dimensions}
-      />
+      {hasMeasuredLayoutSize && (
+        <MemoizedGesture
+          chartPressState={chartPressState}
+          handleTouch={handleTouch}
+          chartPressConfig={chartPressConfig}
+          gestureLongPressDelay={gestureLongPressDelay}
+          composedGesture={composedGesture}
+          dimensions={dimensions}
+        />
+      )}
     </GestureHandlerRootView>
   );
 }
@@ -656,7 +658,7 @@ function GestureHandlerComponent({
           }
         }
       })
-      .onStart(() => {
+      .onStart((e) => {
         "worklet";
 
         gestureState.value = {
