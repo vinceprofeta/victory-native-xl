@@ -1,5 +1,5 @@
-import React, { memo, useMemo, useRef, useState } from "react";
-import { Platform, StyleSheet } from "react-native";
+import React, { memo, useMemo, useState } from "react";
+import { StyleSheet } from "react-native";
 import {
   type Color,
   Group,
@@ -8,9 +8,8 @@ import {
   vec,
   type SkFont as Font,
   type SkPoint,
-  matchFont,
 } from "@shopify/react-native-skia";
-import { getOffsetFromAngle } from "../../utils/getOffsetFromAngle";
+
 import { boundsToClip } from "../../utils/boundsToClip";
 import { DEFAULT_TICK_COUNT, downsampleTicks } from "../../utils/tickHelpers";
 import type {
@@ -28,7 +27,6 @@ import {
   useDerivedValue,
   useAnimatedReaction,
 } from "react-native-reanimated";
-import isEqual from "react-fast-compare";
 
 // Simple debounce utility
 function debounce<T extends (...args: any[]) => any>(
@@ -120,7 +118,7 @@ export const MemoizedXAxis = <
   );
 
   // Ref to store the last reported visible ticks on the JS thread
-  const { ticksInRangeWithBuffer } = useProcessAndReportTicks({
+  useProcessAndReportTicks({
     scrollX,
     scrollXDerived,
     chartBounds,
@@ -131,6 +129,7 @@ export const MemoizedXAxis = <
     ix,
     xScale,
     isScrolling,
+    labelXCenter,
   });
 
   return xTicksNormalized.map((tick, index, arr) => {
@@ -360,6 +359,7 @@ function useProcessAndReportTicks<
   ix,
   xScale,
   isScrolling,
+  labelXCenter,
 }: {
   scrollX: SharedValue<number>;
   ix: InputFields<RawData>[XK][];
@@ -371,75 +371,39 @@ function useProcessAndReportTicks<
   isNumericalData: boolean;
   scrollXDerived: SharedValue<number>;
   isScrolling: SharedValue<boolean>;
+  labelXCenter: boolean;
 }) {
-  const [visisbleTicks, setVisisbleTicks] = useState<{
-    ticksInRange: Array<number>;
-    ticksInRangeWithBuffer: Array<number>;
-  }>({
-    ticksInRange: [],
-    ticksInRangeWithBuffer: [],
-  });
   const scaleDomain = useMemo(() => xScale.domain(), [xScale]);
   const scaleRange = useMemo(() => xScale.range(), [xScale]);
-  const lastReportedVisibleTicksRef = useRef<Array<
-    ValueOf<RawData[XK]>
-  > | null>(null);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keep sroll x
   const handleProcessAndReportTicks = useMemo(() => {
-    return () => {
+    return (ticksInRange: Array<number>) => {
       if (!onVisibleTicksChange) return;
-
       const actualVisibleData: Array<ValueOf<RawData[XK]>> = [];
-
-      xTicksNormalized.forEach((tick) => {
+      ticksInRange.forEach((tick) => {
         const numericTick = Number(tick);
         if (Number.isNaN(numericTick)) return;
-
-        // Use the JS scale here
-        const tickPixelX = xScale(numericTick);
-        const scrolledPixelX = tickPixelX + scrollXDerived.value;
-
-        if (
-          scrolledPixelX >= chartBounds.left &&
-          scrolledPixelX <= chartBounds.right
-        ) {
-          const indexPosition = uniqueValueIndices.get(String(tick)) ?? tick;
-          const dataValue = (
-            isNumericalData ? tick : ix[indexPosition as number]
-          ) as ValueOf<RawData[XK]>;
-          actualVisibleData.push(dataValue);
-        }
+        const indexPosition = uniqueValueIndices.get(String(tick)) ?? tick;
+        const dataValue = (
+          isNumericalData ? tick : ix[indexPosition as number]
+        ) as ValueOf<RawData[XK]>;
+        actualVisibleData.push(dataValue);
       });
-
-      // Compare with previous and call callback if changed
-      if (!isEqual(lastReportedVisibleTicksRef.current, actualVisibleData)) {
-        lastReportedVisibleTicksRef.current = actualVisibleData; // Update ref
-        onVisibleTicksChange(actualVisibleData); // Call the user's callback
-      }
+      onVisibleTicksChange(actualVisibleData);
     };
   }, [
     onVisibleTicksChange,
     scrollX, // KEEP: Include scrollX to read latest value inside
-    xTicksNormalized,
-    xScale, // Use JS Scale
-    chartBounds,
     uniqueValueIndices,
     isNumericalData,
     ix,
-    scrollXDerived,
   ]);
 
   // Debounce the JS processing function
   const debouncedProcessAndReportTicks = useMemo(() => {
     return debounce(handleProcessAndReportTicks, 50); // Adjust debounce time (ms) as needed
   }, [handleProcessAndReportTicks]);
-
-  // NEW: Debounced function for updating the internal virtualization state
-  // const debouncedSetVisibleTicks = useMemo(() => {
-  //   return debounce((data: { ticksInRange: Array<number>; ticksInRangeWithBuffer: Array<number> }) => {
-  //     setVisisbleTicks(data)
-  //   }, 90) // Using a 90ms debounce, adjust as needed
-  // }, [])
 
   useAnimatedReaction(
     () => {
@@ -471,7 +435,7 @@ function useProcessAndReportTicks<
         if (Number.isNaN(numericTick)) continue;
 
         const tickPixelX = scaleWorklet(numericTick);
-        const scrolledPixelX = tickPixelX - scrollX.value;
+        const scrolledPixelX = tickPixelX + scrollXDerived.value;
 
         // Optimization 1: Current tick is past the right buffered edge.
         // If so, all subsequent ticks (in a sorted array) are also past, so we can stop.
@@ -493,9 +457,10 @@ function useProcessAndReportTicks<
         ticksInRangeWithBuffer.push(tick);
 
         // Now, check if it's also within the strictly visible chartBounds for the callback.
+        const detectionOffset = labelXCenter ? 30 : 0;
         if (
-          scrolledPixelX >= chartBoundsLeft &&
-          scrolledPixelX <= chartBoundsRight
+          scrolledPixelX >= chartBoundsLeft - detectionOffset &&
+          scrolledPixelX <= chartBoundsRight - detectionOffset
         ) {
           ticksInRange.push(tick);
           if (firstVisibleTick === null) {
@@ -521,28 +486,12 @@ function useProcessAndReportTicks<
           current.first !== previous.first ||
           current.last !== previous.last)
       ) {
-        runOnJS(debouncedProcessAndReportTicks)(); // Call the debounced function
+        runOnJS(debouncedProcessAndReportTicks)(current.ticksInRange); // Call the debounced function
       }
-
-      // Condition for setVisisbleTicks (virtualization state)
-      // let shouldUpdateVirtualizationState = false
-      // if (previous === null) {
-      //   shouldUpdateVirtualizationState = true
-      // } else {
-      //   if (!_arraysEqual(current.ticksInRangeWithBuffer, previous.ticksInRangeWithBuffer)) {
-      //     shouldUpdateVirtualizationState = true
-      //   }
-      // }
-
-      // if (shouldUpdateVirtualizationState) {
-      //   runOnJS(debouncedSetVisibleTicks)({
-      //     ticksInRange: current.ticksInRange,
-      //     ticksInRangeWithBuffer: current.ticksInRangeWithBuffer,
-      //   })
-      // }
     },
     // Dependencies for the reaction prepare block
     [
+      labelXCenter,
       scrollX,
       scaleDomain,
       scaleRange,
@@ -552,11 +501,6 @@ function useProcessAndReportTicks<
       isScrolling,
     ], // Use debounced function in deps
   );
-
-  return {
-    ticksInRange: visisbleTicks.ticksInRange,
-    ticksInRangeWithBuffer: visisbleTicks.ticksInRangeWithBuffer,
-  };
 }
 
 export const XAxis = memo(MemoizedXAxis);
@@ -573,14 +517,3 @@ export const XAxisDefaults = {
   labelColor: "#000000",
   labelRotate: 0,
 } satisfies XAxisPropsWithDefaults<never, never>;
-
-// Helper function to check if two arrays are equal
-const _arraysEqual = (a: any, b: any) => {
-  if (a === b) return true;
-  if (a == null || b == null) return false;
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false;
-  }
-  return true;
-};

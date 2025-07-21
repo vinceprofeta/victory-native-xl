@@ -256,6 +256,8 @@ function CartesianChartContent<
       _tData,
     };
   }, [
+    data,
+    xKey,
     padding,
     size.width,
     size.height,
@@ -355,8 +357,10 @@ function CartesianChartContent<
 
         const chartYPressed = chartHeight - y; // Invert y-coordinate, since RNGH gives us the absolute Y, and we want to know where in the chart they clicked
         // Calculate the actual yValue of the touch within the domain of the yScale
+        if (typeof yScaleTop !== "number" || typeof yScaleBottom !== "number")
+          return;
         const yDomainValue =
-          (chartYPressed / chartHeight) * (yScaleTop! - yScaleBottom!);
+          (chartYPressed / chartHeight) * (yScaleTop - yScaleBottom);
 
         // track the cumulative height and the y-index of the touched segment
         let cumulativeHeight = 0;
@@ -365,7 +369,7 @@ function CartesianChartContent<
         // loop through the bar heights to find which bar was touched
         for (let i = 0; i < barHeights.length; i++) {
           // Accumulate the height as we go along
-          cumulativeHeight += barHeights[i]!;
+          cumulativeHeight += barHeights[i] ?? 0;
           // Check if the y-value touched falls within the current segment
           if (yDomainValue <= cumulativeHeight) {
             // If it does, set yIndex to the current segment index and break
@@ -381,7 +385,7 @@ function CartesianChartContent<
         if (v) {
           try {
             v.matchedIndex.value = idx;
-            v.x.value.value = tData.value.ix[idx]!;
+            v.x.value.value = tData.value.ix[idx];
             // For scrubber position: add scroll transform since scrubber renders outside transformed group
             v.x.position.value = asNumber(tData.value.ox[idx]) + scrollXDerived;
             for (const yk in v.y) {
@@ -667,7 +671,9 @@ function GestureHandlerComponent({
         };
 
         for (let i = 0; i < gestureState.value.bootstrap.length; i++) {
-          const [v, touch] = gestureState.value.bootstrap[i]!;
+          const entry = gestureState.value.bootstrap[i];
+          if (!entry) continue;
+          const [v, touch] = entry;
           // Update the mapping
           if (typeof touchMap.value[touch.id] !== "number")
             touchMap.value[touch.id] = i;
@@ -728,7 +734,7 @@ function GestureHandlerComponent({
           }
         }
       });
-  }, [activePressSharedValues, gestureState]);
+  }, [activePressSharedValues, gestureState, handleTouch]);
 
   if (chartPressState) {
     composedGesture = Gesture.Race(composedGesture, panGesture);
