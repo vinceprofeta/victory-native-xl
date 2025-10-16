@@ -1,6 +1,6 @@
 import * as React from "react";
 import { type LayoutChangeEvent } from "react-native";
-import { Canvas, Group } from "@shopify/react-native-skia";
+import { Canvas, Group, useCanvasSize } from "@shopify/react-native-skia";
 import { useSharedValue } from "react-native-reanimated";
 import {
   type ComposedGesture,
@@ -160,7 +160,6 @@ function CartesianChartContent<
   actionsRef,
   viewport,
 }: CartesianChartProps<RawData, XK, YK>) {
-  const [size, setSize] = React.useState({ width: 0, height: 0 });
   const chartBoundsRef = React.useRef<ChartBounds | undefined>(undefined);
   const xScaleRef = React.useRef<ScaleLinear<number, number> | undefined>(
     undefined,
@@ -168,15 +167,18 @@ function CartesianChartContent<
   const yScaleRef = React.useRef<ScaleLinear<number, number> | undefined>(
     undefined,
   );
+
+  // new arch
+  const { ref, size } = useCanvasSize();
   const [hasMeasuredLayoutSize, setHasMeasuredLayoutSize] =
     React.useState(false);
-  const onLayout = React.useCallback(
-    ({ nativeEvent: { layout } }: LayoutChangeEvent) => {
-      setHasMeasuredLayoutSize(true);
-      setSize(layout);
-    },
-    [],
-  );
+
+  React.useEffect(() => {
+    setHasMeasuredLayoutSize(size.height > 0 && size.width > 0);
+  }, [size.height, size.width]);
+
+  // new arch
+
   const normalizedAxisProps = useBuildChartAxis({
     xAxis,
     yAxis,
@@ -645,7 +647,7 @@ function CartesianChartContent<
 
   // Body of the chart.
   const body = (
-    <Canvas style={{ flex: 1 }} onLayout={onLayout}>
+    <Canvas style={{ flex: 1 }} ref={ref}>
       {YAxisComponents}
       {XAxisComponents}
       {FrameComponent}

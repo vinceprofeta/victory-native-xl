@@ -1,5 +1,10 @@
 import * as React from "react";
-import { Canvas, Group } from "@shopify/react-native-skia";
+import {
+  Canvas,
+  Group,
+  SkSize,
+  useCanvasSize,
+} from "@shopify/react-native-skia";
 import {
   StyleSheet,
   View,
@@ -24,7 +29,7 @@ import {
 import { GestureHandler } from "../shared/GestureHandler";
 
 type PolarChartBaseProps = {
-  onLayout: ({ nativeEvent: { layout } }: LayoutChangeEvent) => void;
+  onLayout: (layout: SkSize) => void;
   hasMeasuredLayoutSize: boolean;
   canvasSize: { width: number; height: number };
   containerStyle?: StyleProp<ViewStyle>;
@@ -56,11 +61,18 @@ const PolarChartBase = (
     );
   }
 
+  const { ref, size } = useCanvasSize();
+  React.useEffect(() => {
+    if (size.height > 0 && size.width > 0) {
+      onLayout(size);
+    }
+  }, [size.height, size.width]);
+
   return (
     <View style={[styles.baseContainer, containerStyle]}>
       <GestureHandlerRootView style={{ flex: 1, overflow: "hidden" }}>
         <Canvas
-          onLayout={onLayout}
+          ref={ref}
           style={StyleSheet.flatten([
             styles.canvasContainer,
             hasMeasuredLayoutSize ? { width, height } : null,
@@ -111,13 +123,10 @@ export const PolarChart = <
   const [hasMeasuredLayoutSize, setHasMeasuredLayoutSize] =
     React.useState(false);
 
-  const onLayout = React.useCallback(
-    ({ nativeEvent: { layout } }: LayoutChangeEvent) => {
-      setHasMeasuredLayoutSize(true);
-      setCanvasSize(layout);
-    },
-    [],
-  );
+  const onLayout = React.useCallback((layout: SkSize) => {
+    setHasMeasuredLayoutSize(true);
+    setCanvasSize(layout);
+  }, []);
 
   return (
     <FiberProvider>

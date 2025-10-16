@@ -1,7 +1,12 @@
 import * as React from "react";
 import { ZoomTransform } from "d3-zoom";
 import type { LayoutChangeEvent } from "react-native";
-import { Canvas, type ClipDef, Group } from "@shopify/react-native-skia";
+import {
+  Canvas,
+  type ClipDef,
+  Group,
+  useCanvasSize,
+} from "@shopify/react-native-skia";
 import {
   type SharedValue,
   useDerivedValue,
@@ -178,17 +183,15 @@ function CartesianChartContent<
   scrollControllerRef,
   maxScrollOffset = 50,
 }: CartesianChartProps<RawData, XK, YK>) {
-  const [size, setSize] = React.useState({ width: 0, height: 0 });
   const chartBoundsRef = React.useRef<ChartBounds | undefined>(undefined);
+  const { ref, size } = useCanvasSize();
   const [hasMeasuredLayoutSize, setHasMeasuredLayoutSize] =
     React.useState(false);
-  const onLayout = React.useCallback(
-    ({ nativeEvent: { layout } }: LayoutChangeEvent) => {
-      setHasMeasuredLayoutSize(true);
-      setSize(layout);
-    },
-    [],
-  );
+
+  React.useEffect(() => {
+    setHasMeasuredLayoutSize(size.height > 0 && size.width > 0);
+  }, [size.height, size.width]);
+
   const normalizedAxisProps = useBuildChartAxis({
     xAxis,
     yAxis,
@@ -544,7 +547,7 @@ function CartesianChartContent<
 
   return (
     <GestureHandlerRootView style={{ flex: 1, overflow: "hidden" }}>
-      <Canvas style={{ flex: 1 }} onLayout={onLayout}>
+      <Canvas style={{ flex: 1 }} ref={ref}>
         {FrameComponent}
         <ChartAxis
           primaryYScale={primaryYScale}
